@@ -1,0 +1,37 @@
+# Kiro CLI pre block. Keep at the top of this file.
+# Guarded to prevent PTY/bootstrap failures from killing new terminal sessions.
+_kiro_source_guarded() {
+  local _hook="$1"
+  local _path="${HOME}/Library/Application Support/kiro-cli/shell/${_hook}"
+  [[ -f "${_path}" ]] || return 0
+  [[ -o interactive ]] || return 0
+  [[ -z "${DISABLE_KIRO_SHELL_BOOTSTRAP:-}" ]] || return 0
+  [[ -x "${HOME}/.local/bin/kiro-cli" ]] || return 0
+
+  # Force-skip kiro-cli-term PTY handoff in shell init.
+  export PROCESS_LAUNCHED_BY_Q=1
+  builtin source "${_path}" || return 0
+}
+_kiro_source_guarded "zprofile.pre.zsh"
+
+# Ensure local user binaries are available in login shells.
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+
+# BEGIN SET JAVA_HOME
+export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
+export JAVA_HOME8=$(/usr/libexec/java_home -v 1.8)
+export JAVA_HOME11=$(/usr/libexec/java_home -v 11)
+export JAVA_HOME17=$(/usr/libexec/java_home -v 17)
+launchctl setenv JAVA_HOME $JAVA_HOME
+# END SET JAVA_HOME
+# BEGIN SET Set TestContainers environment variable
+export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
+# END SET Set TestContainers environment variable
+
+# Kiro CLI post block. Keep at the bottom of this file.
+_kiro_source_guarded "zprofile.post.zsh"
+unset -f _kiro_source_guarded 2>/dev/null || true

@@ -1,0 +1,12 @@
+
+# Ensure local user binaries are always available (kiro-cli-term, etc.).
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+export VOLTA_HOME="$HOME/.volta"
+export PATH="$VOLTA_HOME/bin:$PATH"
+
+# Emergency switch: disable Kiro shell bootstrap if terminal startup regresses.
+# export DISABLE_KIRO_SHELL_BOOTSTRAP=1

@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DRY_RUN=0
+ASSUME_YES=0
+INCLUDE_WRAPPERS=0
+MIN_AGE_SEC=120
+KEEP_TTYS=()
+
+usage() {
+  cat <<'EOF'
+Usage: pty-clean-safe [options]
+
+Safe PTY/session cleanup helper.
+Default behavior only targets likely stale/orphaned shells:
+  - orphan login zsh shells (PPID=1)
+  - orphan "zsh (kiro-cli-term)" wrappers (PPID=1)
+  - orphan plain zsh shells older than --min-age-sec (PPID=1)
+  - orphan gitstatusd workers older than --min-age-sec (PPID=1)
+
+Options:
+  --dry-run              Show what would be killed, kill nothing
+  --yes                  Skip confirmation prompt
+  --keep-tty LIST        Comma-separated TTYs to preserve (example: s001,s003)
+  --include-wrappers     Also include non-orphan kiro wrappers older than --min-age-sec
+  --min-age-sec N        Age threshold for --include-wrappers (default: 120)
+  -h, --help             Show this help
+EOF
+}
+
+in_keep_ttys() {
+  local tty="$1"
+  local keep
+  for keep in "${KEEP_TTYS[@]}"; do
+    [[ "$tty" == "$keep" ]] && return 0
+  done
+  return 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    --yes) ASSUME_YES=1 ;;
+    --include-wrappers) INCLUDE_WRAPPERS=1 ;;
+    --min-age-sec)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --min-age-sec" >&2; exit 1; }
+      MIN_AGE_SEC="$1"
+      ;;
+    --keep-tty)
+      shift
+      [[ $# -gt 0 ]] || { echo "Missing value for --keep-tty" >&2; exit 1; }
+      IFS=',' read -r -a KEEP_TTYS <<< "$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+echo "PTY snapshot:"
+echo -n "  open s-tty procs: "
+ps -axo tt= | awk '$1 ~ /^s[0-9]+$/ {c++} END {print c+0}'
+echo -n "  unique s-ttys:    "
+ps -axo tt= | awk '$1 ~ /^s[0-9]+$/ {print $1}' | sort -u | wc -l | tr -d ' '
+echo
+
+TMP_CAND="$(mktemp)"
+TMP_PIDS="$(mktemp)"
+trap 'rm -f "$TMP_CAND" "$TMP_PIDS"' EXIT
+
+etime_to_sec() {
+  local raw="$1"
+  local d=0 h=0 m=0 s=0
+  local t="$raw"
+  if [[ "$t" == *-* ]]; then
+    d="${t%%-*}"
+    t="${t#*-}"
+  fi
+  IFS=':' read -r -a parts <<< "$t"
+  if [[ "${#parts[@]}" -eq 3 ]]; then
+    h="${parts[0]}"
+    m="${parts[1]}"
+    s="${parts[2]}"
+  elif [[ "${#parts[@]}" -eq 2 ]]; then
+    m="${parts[0]}"
+    s="${parts[1]}"
+  elif [[ "${#parts[@]}" -eq 1 ]]; then
+    s="${parts[0]}"
+  fi
+  echo $((10#$d*86400 + 10#$h*3600 + 10#$m*60 + 10#$s))
+}
+
+ps -axo pid=,ppid=,tty=,etime=,command= | \
+while read -r pid ppid tty etime cmd; do
+  age_sec="$(etime_to_sec "$etime")"
+  reason=""
+
+  if [[ "$ppid" == "1" ]] && [[ "$cmd" =~ (^|[[:space:]])(/opt/homebrew/Cellar/zsh/.*/bin/zsh|/opt/homebrew/bin/zsh|/bin/zsh)[[:space:]]+--login($|[[:space:]]) ]]; then
+    reason="orphan-login-shell"
+  elif [[ "$ppid" == "1" ]] && [[ "$cmd" == "zsh (kiro-cli-term)" ]]; then
+    reason="orphan-kiro-wrapper"
+  elif [[ "$ppid" == "1" ]] \
+    && [[ "$cmd" =~ (^|[[:space:]])(/opt/homebrew/Cellar/zsh/.*/bin/zsh|/opt/homebrew/bin/zsh|/bin/zsh)($|[[:space:]]) ]] \
+    && [[ "$cmd" != "zsh (kiro-cli-term)" ]] \
+    && [[ "$age_sec" -ge "$MIN_AGE_SEC" ]]; then
+    reason="orphan-zsh-age>${MIN_AGE_SEC}s"
+  elif [[ "$ppid" == "1" ]] \
+    && [[ "$cmd" == *"/.cache/gitstatus/gitstatusd-darwin-arm64"* ]] \
+    && [[ "$age_sec" -ge "$MIN_AGE_SEC" ]]; then
+    reason="orphan-gitstatus-age>${MIN_AGE_SEC}s"
+  elif [[ "$INCLUDE_WRAPPERS" == "1" ]] && [[ "$cmd" == "zsh (kiro-cli-term)" ]] && [[ "$age_sec" -ge "$MIN_AGE_SEC" ]]; then
+    reason="wrapper-age>${MIN_AGE_SEC}s"
+  fi
+
+  [[ -n "$reason" ]] || continue
+  in_keep_ttys "$tty" && continue
+
+  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$pid" "$ppid" "$tty" "$etime" "$age_sec" "$reason" "$cmd" >> "$TMP_CAND"
+done
+
+if [[ ! -s "$TMP_CAND" ]]; then
+  echo "No candidate processes found."
+  exit 0
+fi
+
+echo "Candidates:"
+{
+  printf "PID\tPPID\tTTY\tETIME\tAGE(s)\tREASON\tCOMMAND\n"
+  cat "$TMP_CAND"
+} | column -t -s $'\t'
+echo
+
+awk -F'\t' '{print $1}' "$TMP_CAND" > "$TMP_PIDS"
+COUNT="$(wc -l < "$TMP_PIDS" | tr -d ' ')"
+echo "Total candidates: $COUNT"
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  echo "Dry run mode; nothing killed."
+  exit 0
+fi
+
+if [[ "$ASSUME_YES" != "1" ]]; then
+  read -r -p "Proceed to kill these processes? [y/N] " ans
+  case "$ans" in
+    y|Y|yes|YES) ;;
+    *) echo "Aborted."; exit 1 ;;
+  esac
+fi
+
+echo "Sending TERM..."
+xargs kill -TERM < "$TMP_PIDS" 2>/dev/null || true
+sleep 1
+
+echo "Checking survivors..."
+SURV="$(mktemp)"
+trap 'rm -f "$TMP_CAND" "$TMP_PIDS" "$SURV"' EXIT
+while read -r pid; do
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "$pid" >> "$SURV"
+  fi
+done < "$TMP_PIDS"
+
+if [[ -s "$SURV" ]]; then
+  echo "Sending KILL to remaining processes..."
+  xargs kill -KILL < "$SURV" 2>/dev/null || true
+fi
+
+echo "Done."
+echo -n "  open s-tty procs: "
+ps -axo tt= | awk '$1 ~ /^s[0-9]+$/ {c++} END {print c+0}'
+echo -n "  unique s-ttys:    "
+ps -axo tt= | awk '$1 ~ /^s[0-9]+$/ {print $1}' | sort -u | wc -l | tr -d ' '

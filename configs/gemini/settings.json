@@ -1,0 +1,82 @@
+{
+  "experimental": {
+    "useModelRouter": true,
+    "skills": true,
+    "plan": true,
+    "enableAgents": true
+  },
+  "general": {
+    "disableAutoUpdate": false,
+    "enablePromptCompletion": true,
+    "previewFeatures": true,
+    "enableAutoUpdate": true
+  },
+  "hooks": {
+    "PreCompress": [
+      {
+        "hooks": [
+          {
+            "command": "bd prime",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bd prime",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ]
+  },
+  "mcpServers": {
+    "context7": {
+      "args": [
+        "-y",
+        "@upstash/context7-mcp",
+        "--api-key",
+        "$CONTEXT7_API_KEY"
+      ],
+      "command": "npx"
+    },
+    "github": {
+      "headers": {
+        "Authorization": "Bearer $GITHUB_MCP_PAT"
+      },
+      "httpUrl": "https://api.githubcopilot.com/mcp/"
+    },
+    "google-workspace": {
+      "command": "$HOME/.gemini/mcp-servers/google-workspace/start.sh"
+    }
+  },
+  "output": {
+    "format": "text"
+  },
+  "security": {
+    "auth": {
+      "selectedType": "vertex-ai"
+    },
+    "environmentVariableRedaction": {
+      "enabled": true
+    },
+    "enablePermanentToolApproval": true
+  },
+  "tools": {
+    "shell": {
+      "showColor": true
+    },
+    "autoAccept": true,
+    "approvalMode": "auto_edit"
+  },
+  "ui": {
+    "showMemoryUsage": true,
+    "showStatusInTitle": true,
+    "showModelInfoInChat": true
+  }
+}

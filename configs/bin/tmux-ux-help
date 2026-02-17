@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cat <<'HELP'
+Tmux UX Cheatsheet
+==================
+
+Main/watcher pattern:
+  1) Put your primary CLI work in pane 0 (main)
+  2) Keep pane 1 as watcher/reader
+  3) From watcher pane, read/copy main pane quickly:
+     tmux-pane-read --main --stdout
+     tmux-pane-read --main --copy
+
+Other capture commands:
+  tmux-pane-read --last --copy
+  tmux-pane-read --active --lines 3000 --stdout
+  tmux-pane-read --target %3 --lines 3000 --copy
+
+Layout commands:
+  tmux-layout-apply main-watch
+  tmux-layout-apply pair
+  tmux-layout-apply dev-triple
+  tmux-layout-apply tiled
+
+Inside tmux keybindings:
+  Prefix + ?    Open this help
+  Prefix + y    Copy last pane (@pane_read_lines, default 3000)
+  Prefix + Y    Preview last pane capture
+  Prefix + 1    Apply main-watch layout
+  Prefix + 2    Apply pair layout
+  Prefix + 3    Apply tiled layout
+  Prefix + r    Reload tmux config
+
+Notes:
+  - Captured text is always stored in tmux buffer.
+  - 'main' target means pane 0 of the current window.
+  - Line count precedence: --lines > TMUX_PANE_READ_LINES > tmux @pane_read_lines > 3000.
+HELP

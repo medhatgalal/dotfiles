@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DEFAULT_LINES=3000
+LINES=""
+MODE="last"
+TARGET=""
+OUT_MODE="stdout"
+
+usage() {
+  cat <<'USAGE'
+Usage: tmux-pane-read [options]
+
+Capture text from a tmux pane without memorizing capture-pane flags.
+
+Options:
+  --active            Capture from active pane (.)
+  --last              Capture from last active pane (!) [default]
+  --main              Capture from pane 0 of current window
+  --target <pane>     Capture from explicit pane id (e.g. %3)
+  --lines <n>         Number of recent lines to capture (default: env/tmux option/3000)
+  --copy              Copy to clipboard (and tmux buffer)
+  --stdout            Print to stdout [default]
+  -h, --help          Show help
+USAGE
+}
+
+resolve_lines_default() {
+  local resolved="${TMUX_PANE_READ_LINES:-}"
+  if [[ -z "$resolved" ]]; then
+    resolved="$(tmux show-option -gqv @pane_read_lines 2>/dev/null || true)"
+  fi
+  if [[ -z "$resolved" ]]; then
+    resolved="$DEFAULT_LINES"
+  fi
+  printf '%s' "$resolved"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --active) MODE="active" ;;
+    --last) MODE="last" ;;
+    --main) MODE="main" ;;
+    --target)
+      shift
+      [[ $# -gt 0 ]] || { echo "--target requires a pane id" >&2; exit 1; }
+      MODE="target"
+      TARGET="$1"
+      ;;
+    --lines)
+      shift
+      [[ $# -gt 0 ]] || { echo "--lines requires a value" >&2; exit 1; }
+      LINES="$1"
+      ;;
+    --copy) OUT_MODE="copy" ;;
+    --stdout) OUT_MODE="stdout" ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "tmux is not installed." >&2
+  exit 1
+fi
+
+if [[ -z "${TMUX:-}" ]]; then
+  echo "tmux-pane-read must be run from inside a tmux session." >&2
+  exit 1
+fi
+
+case "$MODE" in
+  active)
+    TARGET="."
+    ;;
+  last)
+    TARGET="!"
+    ;;
+  main)
+    TARGET="$(tmux display-message -p '#{window_id}').0"
+    ;;
+  target)
+    ;;
+  *)
+    echo "Invalid mode: $MODE" >&2
+    exit 1
+    ;;
+esac
+
+if [[ -z "$LINES" ]]; then
+  LINES="$(resolve_lines_default)"
+fi
+
+if ! [[ "$LINES" =~ ^[0-9]+$ ]]; then
+  echo "--lines must be a non-negative integer." >&2
+  exit 1
+fi
+
+CONTENT="$(tmux capture-pane -p -J -S "-$LINES" -t "$TARGET" 2>/dev/null || true)"
+if [[ -z "$CONTENT" ]]; then
+  echo "No captured output from pane target '$TARGET'." >&2
+  exit 1
+fi
+
+printf '%s' "$CONTENT" | tmux load-buffer -
+
+if [[ "$OUT_MODE" == "copy" ]]; then
+  if command -v pbcopy >/dev/null 2>&1; then
+    printf '%s' "$CONTENT" | pbcopy
+  elif command -v wl-copy >/dev/null 2>&1; then
+    printf '%s' "$CONTENT" | wl-copy
+  elif command -v xclip >/dev/null 2>&1; then
+    printf '%s' "$CONTENT" | xclip -selection clipboard
+  elif command -v xsel >/dev/null 2>&1; then
+    printf '%s' "$CONTENT" | xsel --clipboard --input
+  else
+    echo "Clipboard tool not found. Captured content is in tmux buffer only." >&2
+  fi
+else
+  printf '%s\n' "$CONTENT"
+fi

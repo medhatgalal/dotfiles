@@ -1,0 +1,18 @@
+{
+  "app.beta": true,
+  "autocomplete.alwaysSuggestCurrentToken": true,
+  "autocomplete.disable": false,
+  "autocomplete.firstTokenCompletion": true,
+  "autocomplete.fuzzySearch": true,
+  "autocomplete.theme": "system",
+  "chat.defaultModel": "claude-opus4.5",
+  "chat.enableCheckpoint": true,
+  "chat.enableContextUsageIndicator": true,
+  "chat.enableDelegate": true,
+  "chat.enableKnowledge": true,
+  "chat.enableTangentMode": true,
+  "chat.enableThinking": true,
+  "chat.enableTodoList": true,
+  "codeWhisperer.shareCodeWhispererContentWithAWS": false,
+  "mcp.loadedBefore": true
+}

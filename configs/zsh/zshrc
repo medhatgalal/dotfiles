@@ -1,0 +1,122 @@
+# Kiro CLI pre block. Keep at the top of this file.
+# Guarded to prevent PTY/bootstrap failures from killing new terminal sessions.
+_kiro_source_guarded() {
+  local _hook="$1"
+  local _path="${HOME}/Library/Application Support/kiro-cli/shell/${_hook}"
+  [[ -f "${_path}" ]] || return 0
+  [[ -o interactive ]] || return 0
+  [[ -z "${DISABLE_KIRO_SHELL_BOOTSTRAP:-}" ]] || return 0
+  [[ -x "${HOME}/.local/bin/kiro-cli" ]] || return 0
+
+  # Force-skip kiro-cli-term PTY handoff in shell init.
+  export PROCESS_LAUNCHED_BY_Q=1
+  builtin source "${_path}" || return 0
+}
+_kiro_source_guarded "zshrc.pre.zsh"
+
+# Instant prompt (must stay near top)
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# Paths
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+export PATH="/opt/homebrew/bin:$HOME/.rbenv/bin:$HOME/go/bin:$PATH"
+export PATH="${HOME}/.antigravity/antigravity/bin:$PATH"
+export PATH="${HOME}/.bun/bin:$PATH"
+
+# Core env
+export CLICOLOR=1
+export LSCOLORS=ExGxBxDxCxEgEdxbxgxcxd
+export DEFAULT_USER="$USER"
+export GOOGLE_CLOUD_LOCATION="global"
+export VOLTA_HOME="$HOME/.volta"
+export PATH="$VOLTA_HOME/bin:$PATH"
+
+# Load local secrets when present.
+[[ -f ~/.secrets.env ]] && source ~/.secrets.env
+
+# Completions
+if [[ -d ${HOME}/.docker/completions ]]; then
+  fpath=(${HOME}/.docker/completions $fpath)
+fi
+if [[ -d "$HOME/.kiro/completions" ]]; then
+  fpath+=("$HOME/.kiro/completions")
+fi
+if [[ -d "$HOME/.oh-my-zsh/custom/completions" ]]; then
+  fpath=("$HOME/.oh-my-zsh/custom/completions" $fpath)
+fi
+
+# Oh My Zsh
+export ZSH="$HOME/.oh-my-zsh"
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting)
+ZSH_THEME="powerlevel10k/powerlevel10k"
+[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
+
+if [[ -f "$ZSH/oh-my-zsh.sh" ]]; then
+  source "$ZSH/oh-my-zsh.sh"
+else
+  autoload -Uz compinit && compinit
+fi
+
+# Integrations
+if [[ -f '/opt/homebrew/share/google-cloud-sdk/path.zsh.inc' ]]; then
+  . '/opt/homebrew/share/google-cloud-sdk/path.zsh.inc'
+fi
+if [[ -f '/opt/homebrew/share/google-cloud-sdk/completion.zsh.inc' ]]; then
+  . '/opt/homebrew/share/google-cloud-sdk/completion.zsh.inc'
+fi
+if command -v rbenv >/dev/null 2>&1; then
+  eval "$(rbenv init - zsh)"
+fi
+[[ -f ~/.fzf.zsh ]] && source ~/.fzf.zsh
+[[ -f ~/.claude_bedrock_config ]] && source ~/.claude_bedrock_config
+[[ -f "$HOME/.engos/bin/init.zsh" ]] && source "$HOME/.engos/bin/init.zsh"
+
+# Aliases
+alias iterm='open -a iTerm'
+if [[ -d "$HOME/.zsh/aliases" ]]; then
+  for file in "$HOME"/.zsh/aliases/*.zsh; do
+    [[ -r "$file" ]] && source "$file"
+  done
+fi
+
+# Editor ergonomics: keep vi mode explicit across all interactive zsh sessions
+# (including Kiro terminal shells that source this file).
+if [[ -o interactive ]]; then
+  bindkey -v
+  export KEYTIMEOUT="${DOTFILES_ZSH_KEYTIMEOUT:-20}"
+fi
+
+# Tmux porcelain helpers
+export TMUX_PANE_READ_LINES="${TMUX_PANE_READ_LINES:-3000}"
+alias tmux-help='tmux-ux-help'
+alias tmux-main-watch='tmux-layout-apply main-watch'
+alias tmux-copy-main='tmux-pane-read --main --copy'
+alias tmux-read-main='tmux-pane-read --main --stdout'
+alias tmux-copy-last='tmux-pane-read --last --copy'
+alias tmux-read-last='tmux-pane-read --last --stdout'
+
+# Shell/PTY recovery shortcuts (safe, confirmation-first).
+alias fix-zsh='pty-clean-safe'
+alias fix-zsh-dry='pty-clean-safe --dry-run'
+alias fix-zsh-aggressive='pty-clean-safe --include-wrappers --min-age-sec 120'
+shell-recover-help() {
+  cat <<'HELP'
+Shell recovery helpers:
+  fix-zsh             # Safe cleanup (asks before kill)
+  fix-zsh-dry         # Preview only
+  fix-zsh-aggressive  # Include stale wrapper sessions (still asks)
+
+Emergency bootstrap bypass for session-start failures:
+  export DISABLE_KIRO_SHELL_BOOTSTRAP=1
+HELP
+}
+
+# Kiro CLI post block. Keep at the bottom of this file.
+_kiro_source_guarded "zshrc.post.zsh"
+unset -f _kiro_source_guarded 2>/dev/null || true

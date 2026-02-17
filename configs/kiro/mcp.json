@@ -1,0 +1,108 @@
+{
+  "mcpServers": {
+    "sequentialthinking": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "mcp/sequentialthinking"
+      ]
+    },
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_PAT}"
+      },
+      "disabled": true
+    },
+    "google_workspace": {
+      "command": "uvx",
+      "args": [
+        "workspace-mcp"
+      ],
+      "env": {
+        "USER_GOOGLE_EMAIL": "${USER_GOOGLE_EMAIL}",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}"
+      },
+      "disabled": true
+    },
+    "gitlab": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--env",
+        "GITLAB_TOKEN",
+        "registry.gitlab.appian-stratus.com/appian/prod/gitlab-mcp-server/gitlab-mcp-server:latest"
+      ],
+      "env": {
+        "GITLAB_TOKEN": "${GITLAB_TOKEN}"
+      },
+      "disabled": true
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch"
+      ],
+      "env": {},
+      "disabled": false
+    },
+    "memory": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "/Users/medhat.galal/repo/agentic-ai-codebases:/data",
+        "--env",
+        "MEMORY_FILE_PATH=/data/memory.json",
+        "mcp/memory"
+      ]
+    },
+    "jira": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--env",
+        "JIRA_EMAIL",
+        "--env",
+        "JIRA_TOKEN",
+        "--env",
+        "JIRA_URL",
+        "registry.gitlab.appian-stratus.com/appian/prod/jira-mcp-proxy/jira-mcp-proxy:latest"
+      ],
+      "env": {
+        "JIRA_EMAIL": "",
+        "JIRA_TOKEN": "${JIRA_TOKEN}",
+        "JIRA_URL": ""
+      },
+      "disabled": true
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/mcp-server-playwright"
+      ],
+      "disabled": false
+    }
+  },
+  "powers": {
+    "mcpServers": {}
+  }
+}

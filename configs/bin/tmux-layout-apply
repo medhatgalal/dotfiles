@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: tmux-layout-apply <layout>
+
+Named layouts:
+  main-watch    2-pane main-left + watcher-right (recommended)
+  pair          2-pane side-by-side equal
+  dev-triple    3-pane main-left + right stack
+  tiled         tiled layout (no pane creation)
+USAGE
+}
+
+if [[ $# -ne 1 ]]; then
+  usage >&2
+  exit 1
+fi
+
+LAYOUT="$1"
+
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "tmux is not installed." >&2
+  exit 1
+fi
+
+if [[ -z "${TMUX:-}" ]]; then
+  echo "tmux-layout-apply must be run from inside a tmux session." >&2
+  exit 1
+fi
+
+WIN_TARGET="$(tmux display-message -p '#{window_id}')"
+
+ensure_panes() {
+  local wanted="$1"
+  local count
+  count="$(tmux list-panes -t "$WIN_TARGET" | wc -l | tr -d ' ')"
+  while [[ "$count" -lt "$wanted" ]]; do
+    tmux split-window -h -t "$WIN_TARGET"
+    tmux select-layout -t "$WIN_TARGET" tiled >/dev/null
+    count="$(tmux list-panes -t "$WIN_TARGET" | wc -l | tr -d ' ')"
+  done
+}
+
+case "$LAYOUT" in
+  main-watch)
+    ensure_panes 2
+    tmux select-layout -t "$WIN_TARGET" main-vertical
+    tmux select-pane -t "$WIN_TARGET".0
+    ;;
+  pair)
+    ensure_panes 2
+    tmux select-layout -t "$WIN_TARGET" even-horizontal
+    ;;
+  dev-triple)
+    ensure_panes 3
+    tmux select-layout -t "$WIN_TARGET" main-vertical
+    tmux select-pane -t "$WIN_TARGET".0
+    ;;
+  tiled)
+    tmux select-layout -t "$WIN_TARGET" tiled
+    ;;
+  *)
+    echo "Unknown layout: $LAYOUT" >&2
+    usage >&2
+    exit 1
+    ;;
+esac
