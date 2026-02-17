@@ -11,6 +11,7 @@ DRY_RUN=0
 ASSUME_YES=0
 TARGET_REPO_PATH=""
 BACKUP_COUNT=0
+BASE_BREW_PACKAGES=(git jq node python3 tmux pre-commit awscli eza bat fd ripgrep fzf zoxide tree)
 
 log() { printf '[%s] %s\n' "$1" "$2"; }
 
@@ -58,6 +59,32 @@ prompt_yes_no() {
   fi
 
   [[ "$ans" =~ ^([yY]|[yY][eE][sS])$ ]]
+}
+
+install_cli_baseline() {
+  local pkg
+
+  if ! command -v brew >/dev/null 2>&1; then
+    log ERROR "Homebrew is required to install baseline CLI tools."
+    log ERROR "Install Homebrew first: https://brew.sh"
+    return 1
+  fi
+
+  if [[ "$DRY_RUN" == "1" ]]; then
+    for pkg in "${BASE_BREW_PACKAGES[@]}"; do
+      log PLAN "Ensure brew package installed: $pkg"
+    done
+    return 0
+  fi
+
+  for pkg in "${BASE_BREW_PACKAGES[@]}"; do
+    if brew list --versions "$pkg" >/dev/null 2>&1; then
+      log INFO "Already installed: $pkg"
+    else
+      brew install "$pkg"
+      log OK "Installed $pkg"
+    fi
+  done
 }
 
 has_meslo_nerd_font() {
@@ -289,6 +316,10 @@ cleanup_stale_paths() {
 
 log INFO "Installing minimal dotfiles from $DOTFILES_DIR"
 [[ "$DRY_RUN" == "1" ]] && log INFO "Dry run mode enabled"
+
+if prompt_yes_no "Install baseline CLI tools (bat/eza/fd/rg/fzf/zoxide/etc.)?" "Y"; then
+  install_cli_baseline
+fi
 
 if prompt_yes_no "Install shell configs (zsh + aliases)?" "Y"; then
   run_copy "$DOTFILES_DIR/configs/zsh/zshenv" "$HOME/.zshenv"
