@@ -72,7 +72,7 @@ This updater enforces:
 - Dolt backend runtime validation (`bd init --backend dolt` smoke test)
 - CGO regression detection
 - repo-local Beads self-heal when run inside a repo with `.beads/`
-- core shell tools including `eza`
+- core shell tools including `eza`, `bat`, `fd`, `ripgrep`, `fzf`, `zoxide`, and `tree`
 - Meslo Nerd Font cask (`font-meslo-lg-nerd-font`)
 
 ## Shell Ergonomics
@@ -87,6 +87,11 @@ This updater enforces:
 `ls` aliases are resilient:
 - If `eza` is installed: `ls`, `ll`, `la`, `lt` use `eza`.
 - If `eza` is missing: aliases gracefully fall back to native commands.
+
+`cat` alias is resilient:
+- If `bat` is installed: `cat` uses `bat --paging=never`.
+- If `batcat` is installed: `cat` uses `batcat --paging=never`.
+- If neither is installed: native `cat` remains unchanged.
 
 ## Tmux Main/Watcher Pattern
 
