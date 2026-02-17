@@ -21,6 +21,12 @@ This package installs a minimal, portable local environment for EngOS workflows:
 - `~/.codex/AGENTS.md`
 - `~/update_software.sh`
 
+## Token Precedence
+
+- Set `GITLAB_READ_WRITE_TOKEN` in `~/.secrets.env` as the primary GitLab token.
+- `~/.zshrc` maps `GITLAB_READ_WRITE_TOKEN` to `GITLAB_TOKEN` for compatibility.
+- Kiro MCP GitLab config consumes `GITLAB_READ_WRITE_TOKEN` directly.
+
 ## What Is Not Managed
 
 - prompt-pack hydration into repo-local `.gemini/.claude/.codex`

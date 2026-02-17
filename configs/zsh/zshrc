@@ -40,6 +40,11 @@ export PATH="$VOLTA_HOME/bin:$PATH"
 # Load local secrets when present.
 [[ -f ~/.secrets.env ]] && source ~/.secrets.env
 
+# Prefer write-capable GitLab token when present.
+if [[ -n "${GITLAB_READ_WRITE_TOKEN:-}" ]]; then
+  export GITLAB_TOKEN="${GITLAB_READ_WRITE_TOKEN}"
+fi
+
 # Completions
 if [[ -d ${HOME}/.docker/completions ]]; then
   fpath=(${HOME}/.docker/completions $fpath)
