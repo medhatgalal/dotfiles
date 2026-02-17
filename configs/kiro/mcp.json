@@ -47,7 +47,7 @@
         "registry.gitlab.appian-stratus.com/appian/prod/gitlab-mcp-server/gitlab-mcp-server:latest"
       ],
       "env": {
-        "GITLAB_TOKEN": "${GITLAB_TOKEN}"
+        "GITLAB_TOKEN": "${GITLAB_READ_WRITE_TOKEN}"
       },
       "disabled": true
     },

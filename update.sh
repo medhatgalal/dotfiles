@@ -75,15 +75,16 @@ bd_ver() {
   bd version 2>/dev/null | awk 'NR==1{print $3}'
 }
 
-verify_bd_dolt_runtime() {
+verify_dolt_cli() {
   local tmp out rc
   tmp="$(mktemp -d)"
   out="$(mktemp)"
 
   (
     cd "$tmp"
-    git init -q >/dev/null 2>&1 || true
-    bd init --backend dolt >"$out" 2>&1
+    dolt version >"$out" 2>&1
+    dolt init --name "healthcheck" --email "healthcheck@example.com" >>"$out" 2>&1
+    dolt sql -q "select 1 as ok;" >>"$out" 2>&1
   )
   rc=$?
 
@@ -93,17 +94,63 @@ verify_bd_dolt_runtime() {
   fi
 
   cat "$out"
-  if rg -qi "requires CGO|not available on this build|dolt backend requires CGO" "$out"; then
-    rm -rf "$tmp" "$out"
-    return 2
-  fi
-
   rm -rf "$tmp" "$out"
   return 1
 }
 
+verify_bd_dolt_runtime() {
+  local tmp out doctor rc nodb
+  tmp="$(mktemp -d)"
+  out="$(mktemp)"
+  doctor="$(mktemp)"
+
+  (
+    cd "$tmp"
+    git init -q >/dev/null 2>&1 || true
+    bd init --quiet >"$out" 2>&1
+    bd doctor --json >"$doctor" 2>>"$out"
+  )
+  rc=$?
+
+  if [[ $rc -ne 0 ]]; then
+    cat "$out"
+    [[ -s "$doctor" ]] && cat "$doctor"
+    rm -rf "$tmp" "$out" "$doctor"
+    return 1
+  fi
+
+  if rg -qi "requires CGO|not available on this build|dolt backend requires CGO" "$out" "$doctor"; then
+    rm -rf "$tmp" "$out" "$doctor"
+    return 2
+  fi
+
+  if have jq; then
+    if ! jq -e '.checks[] | select((.name=="Database" or .name=="Backend Migration") and (((.detail // "") + " " + (.message // "")) | test("Dolt"; "i")))' "$doctor" >/dev/null 2>&1; then
+      cat "$doctor"
+      rm -rf "$tmp" "$out" "$doctor"
+      return 1
+    fi
+  else
+    if ! rg -qi "Storage: Dolt|Backend: Dolt" "$doctor"; then
+      cat "$doctor"
+      rm -rf "$tmp" "$out" "$doctor"
+      return 1
+    fi
+  fi
+
+  nodb="$(cd "$tmp" && bd config get no-db 2>/dev/null || true)"
+  if [[ "$nodb" == "true" ]]; then
+    echo "bd config no-db=true (Dolt backend required)"
+    rm -rf "$tmp" "$out" "$doctor"
+    return 1
+  fi
+
+  rm -rf "$tmp" "$out" "$doctor"
+  return 0
+}
+
 repo_has_beads() {
-  [[ -d .beads && -f .beads/issues.jsonl ]]
+  [[ -d .beads ]]
 }
 
 safe_stop_bd_daemons() {
@@ -127,7 +174,7 @@ ensure_repo_dolt_backend() {
   if [[ "$backend" == *"SQLite"* ]]; then
     log WARN "Backend is SQLite; attempting migration to Dolt"
     safe_stop_bd_daemons
-    printf 'y\n' | bd --no-daemon --sandbox migrate --to-dolt >/dev/null 2>&1 || true
+    printf 'y\n' | bd --sandbox migrate --to-dolt >/dev/null 2>&1 || true
   fi
 
   bd config set no-db false >/dev/null 2>&1 || true
@@ -135,9 +182,9 @@ ensure_repo_dolt_backend() {
 
   # Metadata repair attempts.
   safe_stop_bd_daemons
-  bd --no-daemon --sandbox migrate >/dev/null 2>&1 || true
+  bd --sandbox migrate >/dev/null 2>&1 || true
   safe_stop_bd_daemons
-  bd --no-daemon --sandbox migrate --update-repo-id >/dev/null 2>&1 || true
+  bd --sandbox migrate --update-repo-id >/dev/null 2>&1 || true
 
   # Final checks.
   bd doctor --json > "$tmp" 2>/dev/null || true
@@ -239,16 +286,21 @@ if prompt "Update Beads (bd) via Homebrew with Dolt+CGO enforcement?" "Y"; then
   old="$(bd_ver)"
 
   if brew list beads >/dev/null 2>&1; then
-    brew upgrade beads || brew reinstall beads
+    brew upgrade --force-bottle beads || brew reinstall --force-bottle beads
   else
-    brew install beads
+    brew install --force-bottle beads
   fi
 
   hash -r 2>/dev/null || true
 
+  if ! verify_dolt_cli; then
+    log ERROR "dolt CLI health check failed"
+    exit 1
+  fi
+
   if ! verify_bd_dolt_runtime; then
     log WARN "bd runtime failed Dolt+CGO verification; retrying with brew reinstall beads"
-    brew reinstall beads
+    brew reinstall --force-bottle beads
     hash -r 2>/dev/null || true
     if ! verify_bd_dolt_runtime; then
       log ERROR "bd runtime still fails Dolt+CGO verification"
