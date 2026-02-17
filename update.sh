@@ -237,7 +237,7 @@ if prompt "Update Homebrew and core formulae?" "Y"; then
     done <<< "$OUTDATED"
   fi
 
-  for pkg in git jq node python3 tmux pre-commit awscli eza; do
+  for pkg in git jq node python3 tmux pre-commit awscli eza bat fd ripgrep fzf zoxide tree; do
     old="$(brew_ver "$pkg")"
     if ! brew list --versions "$pkg" >/dev/null 2>&1; then
       brew install "$pkg"
