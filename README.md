@@ -46,6 +46,15 @@ Dry run:
 ./install.sh --dry-run
 ```
 
+Install into a local repo path (intent: embed this package into the repo):
+
+```bash
+./install.sh --repo-path ~/Desktop/shapeup-base-v6clone
+```
+
+Result:
+- `~/Desktop/shapeup-base-v6clone/scripts/setup/dotfiles` becomes the repo-local install source.
+
 ## Update Software + Beads Runtime
 
 ```bash
@@ -98,3 +107,17 @@ Safe cleanup helpers:
 - `fix-zsh-dry`
 - `fix-zsh-aggressive`
 - `shell-recover-help`
+
+## Backups
+
+At the end of every install run, the script prints:
+- backup snapshot path for that run (when backups are created)
+- backup root path: `~/.dotfiles-backups`
+
+This makes rollback location explicit.
+
+## Open Source
+
+- License: MIT (`LICENSE`)
+- Contributions: see `CONTRIBUTING.md`
+- Community conduct: see `CODE_OF_CONDUCT.md`

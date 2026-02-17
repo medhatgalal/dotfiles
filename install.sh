@@ -9,6 +9,8 @@ SECRETS_FILE="$HOME/.secrets.env"
 SECRETS_TEMPLATE="$DOTFILES_DIR/templates/secrets.env.example"
 DRY_RUN=0
 ASSUME_YES=0
+TARGET_REPO_PATH=""
+BACKUP_COUNT=0
 
 log() { printf '[%s] %s\n' "$1" "$2"; }
 
@@ -19,6 +21,7 @@ Usage: ./install.sh [options]
 Options:
   --dry-run     Show actions without writing files
   --yes         Non-interactive install (accept defaults)
+  --repo-path   Also install this package into <repo>/scripts/setup/dotfiles
   -h, --help    Show help
 USAGE
 }
@@ -27,6 +30,11 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
     --yes) ASSUME_YES=1 ;;
+    --repo-path)
+      [[ $# -ge 2 ]] || { echo "Missing value for --repo-path" >&2; exit 1; }
+      TARGET_REPO_PATH="$2"
+      shift
+      ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
   esac
@@ -148,6 +156,51 @@ configure_iterm2_meslo_font() {
   fi
 }
 
+install_repo_bundle() {
+  local repo_path="$1"
+  local dest backup_name
+
+  [[ -n "$repo_path" ]] || { log WARN "Repo path is empty; skipping repo bundle install"; return 0; }
+  repo_path="${repo_path%/}"
+  dest="$repo_path/scripts/setup/dotfiles"
+
+  if [[ ! -d "$repo_path" ]]; then
+    log WARN "Repo path not found: $repo_path"
+    return 0
+  fi
+
+  if [[ ! -d "$repo_path/.git" ]]; then
+    log WARN "Path does not look like a git repo (.git missing): $repo_path"
+  fi
+
+  if [[ -e "$dest" ]]; then
+    mkdir -p "$BACKUP_DIR"
+    backup_name="$(printf '%s' "$dest" | sed "s|$HOME/||; s|/|__|g")"
+    if [[ "$DRY_RUN" == "1" ]]; then
+      log PLAN "Backup existing repo bundle $dest -> $BACKUP_DIR/$backup_name"
+    else
+      cp -a "$dest" "$BACKUP_DIR/$backup_name"
+      BACKUP_COUNT=$((BACKUP_COUNT + 1))
+      log INFO "Backed up existing repo bundle at $dest"
+    fi
+  fi
+
+  if [[ "$DRY_RUN" == "1" ]]; then
+    log PLAN "Install dotfiles package to $dest"
+    return 0
+  fi
+
+  mkdir -p "$dest"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete --exclude ".git/" "$DOTFILES_DIR"/ "$dest"/
+  else
+    log WARN "rsync not found; copying without delete (stale files may remain)"
+    (cd "$DOTFILES_DIR" && find . -mindepth 1 -maxdepth 1 ! -name ".git" -exec cp -a {} "$dest"/ \;)
+  fi
+
+  log OK "Installed dotfiles package to $dest"
+}
+
 run_copy() {
   local src="$1"
   local dst="$2"
@@ -163,6 +216,7 @@ run_copy() {
       log PLAN "Backup $dst -> $BACKUP_DIR/$backup_name"
     else
       cp -a "$dst" "$BACKUP_DIR/$backup_name"
+      BACKUP_COUNT=$((BACKUP_COUNT + 1))
       log INFO "Backed up $dst"
     fi
   fi
@@ -333,6 +387,20 @@ if prompt_yes_no "Run software update now?" "N"; then
   fi
 fi
 
+if [[ -n "$TARGET_REPO_PATH" ]]; then
+  install_repo_bundle "$TARGET_REPO_PATH"
+elif prompt_yes_no "Install into repo path? Outcome: <repo>/scripts/setup/dotfiles gets this package." "N"; then
+  read -r -p "Repo local path: " TARGET_REPO_PATH
+  install_repo_bundle "$TARGET_REPO_PATH"
+fi
+
 log OK "Dotfiles install complete"
-[[ -d "$BACKUP_DIR" ]] && log INFO "Backups: $BACKUP_DIR"
+if [[ "$DRY_RUN" == "1" ]]; then
+  log INFO "Backup snapshot (dry run): $BACKUP_DIR"
+elif [[ "$BACKUP_COUNT" -gt 0 ]]; then
+  log INFO "Backup snapshot: $BACKUP_DIR ($BACKUP_COUNT item(s))"
+else
+  log INFO "No backups were created in this run."
+fi
+log INFO "Backup root: $BACKUP_ROOT"
 log INFO "Restart terminal after install"
