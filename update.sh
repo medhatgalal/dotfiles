@@ -225,16 +225,21 @@ fi
 
 if prompt "Update Homebrew and core formulae?" "Y"; then
   brew update
-  OUTDATED="$(brew outdated --verbose || true)"
-  brew upgrade
+  OUTDATED_FORMULAE="$(brew outdated --verbose --formula || true)"
+  OUTDATED_CASKS="$(brew outdated --verbose --cask || true)"
+  brew upgrade --formula
 
-  if [[ -n "$OUTDATED" ]]; then
+  if [[ -n "$OUTDATED_FORMULAE" ]]; then
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
       if [[ "$line" =~ ^([^[:space:]]+)[[:space:]]+\((.*)\)[[:space:]]+\<[[:space:]]+(.*)$ ]]; then
         echo "${BASH_REMATCH[1]}|${BASH_REMATCH[2]}|${BASH_REMATCH[3]}" >> "$UPDATED_LOG"
       fi
-    done <<< "$OUTDATED"
+    done <<< "$OUTDATED_FORMULAE"
+  fi
+
+  if [[ -n "$OUTDATED_CASKS" ]]; then
+    log INFO "Skipping Homebrew cask upgrades by default (may require sudo)."
   fi
 
   for pkg in git jq node python3 tmux pre-commit awscli eza bat fd ripgrep fzf zoxide tree; do
@@ -246,13 +251,17 @@ if prompt "Update Homebrew and core formulae?" "Y"; then
     track "$pkg" "$old" "$new"
   done
 
-  old="$(brew_cask_ver font-meslo-lg-nerd-font)"
-  if ! brew list --cask --versions font-meslo-lg-nerd-font >/dev/null 2>&1; then
-    brew tap homebrew/cask-fonts >/dev/null 2>&1 || true
-    brew install --cask font-meslo-lg-nerd-font >/dev/null 2>&1 || log WARN "font-meslo-lg-nerd-font install failed"
+  if prompt "Run Homebrew cask operations (may require sudo)?" "N"; then
+    old="$(brew_cask_ver font-meslo-lg-nerd-font)"
+    if ! brew list --cask --versions font-meslo-lg-nerd-font >/dev/null 2>&1; then
+      brew tap homebrew/cask-fonts >/dev/null 2>&1 || true
+      brew install --cask font-meslo-lg-nerd-font >/dev/null 2>&1 || log WARN "font-meslo-lg-nerd-font install failed"
+    fi
+    new="$(brew_cask_ver font-meslo-lg-nerd-font)"
+    track "font-meslo-lg-nerd-font(cask)" "$old" "$new"
+  else
+    log INFO "Skipping cask operations."
   fi
-  new="$(brew_cask_ver font-meslo-lg-nerd-font)"
-  track "font-meslo-lg-nerd-font(cask)" "$old" "$new"
 
   brew cleanup
 fi
