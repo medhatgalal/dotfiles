@@ -107,14 +107,16 @@ verify_bd_dolt_runtime() {
   (
     cd "$tmp"
     git init -q >/dev/null 2>&1 || true
-    bd init --quiet >"$out" 2>&1
-    bd doctor --json >"$doctor" 2>>"$out"
+    if ! bd init --quiet >"$out" 2>&1; then
+      echo "bd init failed"
+      cat "$out"
+      exit 1
+    fi
+    bd doctor --json >"$doctor" 2>>"$out" || true
   )
   rc=$?
 
   if [[ $rc -ne 0 ]]; then
-    cat "$out"
-    [[ -s "$doctor" ]] && cat "$doctor"
     rm -rf "$tmp" "$out" "$doctor"
     return 1
   fi
