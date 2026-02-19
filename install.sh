@@ -393,6 +393,9 @@ if prompt_yes_no "Install CLI config files (Gemini/Claude/Kiro/AGENTS)?" "Y"; th
   run_copy "$DOTFILES_DIR/configs/kiro/cli.json" "$HOME/.kiro/settings/cli.json"
   run_copy "$DOTFILES_DIR/configs/kiro/mcp.json" "$HOME/.kiro/settings/mcp.json"
 
+  mkdir -p "$HOME/.codex"
+  run_copy "$DOTFILES_DIR/configs/codex/config.toml" "$HOME/.codex/config.toml"
+
   run_copy "$DOTFILES_DIR/configs/agents/AGENTS.md" "$HOME/.codex/AGENTS.md"
   run_copy "$DOTFILES_DIR/configs/agents/AGENTS.md" "$HOME/.gemini/AGENTS.md"
   run_copy "$DOTFILES_DIR/configs/agents/AGENTS.md" "$HOME/.claude/AGENTS.md"

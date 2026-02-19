@@ -1,0 +1,68 @@
+approval_policy = "on-failure"
+sandbox_permissions = ["disk-full-read-access"]
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+personality = "pragmatic"
+
+[notice.model_migrations]
+"gpt-5.2" = "gpt-5.2-codex"
+
+sandbox = "workspace-write"
+"gpt-5.2-codex" = "gpt-5.3-codex"
+
+[projects]
+[projects."/Users/medhat.galal"]
+trust_level = "trusted"
+
+[profiles.engos-safe]
+approval_policy = "on-failure"
+sandbox = "workspace-write"
+sandbox_permissions = ['disk-full-read-access']
+
+[profiles.engos-fast]
+approval_policy = "never"
+sandbox = "danger-full-access"
+sandbox_permissions = ['disk-full-read-access']
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+
+[features]
+unified_exec = true
+shell_snapshot = true
+apps = true
+steer = true
+personality = true
+multi_agent = true
+prevent_idle_sleep = true
+
+[tui]
+status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-remaining"]
+
+[mcp_servers.jira]
+command = "docker"
+args = ["run", "--rm", "-i", "--env", "JIRA_EMAIL", "--env", "JIRA_TOKEN", "--env", "JIRA_URL", "${JIRA_MCP_IMAGE}"]
+env = { JIRA_TOKEN = "${JIRA_TOKEN}" }
+
+[mcp_servers.gitlab]
+command = "docker"
+args = ["run", "--rm", "-i", "--env", "GITLAB_TOKEN", "${GITLAB_MCP_IMAGE}"]
+env = { GITLAB_TOKEN = "${GITLAB_TOKEN}" }
+
+[mcp_servers.github]
+command = "docker"
+args = ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "${GITHUB_MCP_IMAGE}"]
+env = { GITHUB_PERSONAL_ACCESS_TOKEN = "${GITHUB_MCP_PAT}" }
+
+[mcp_servers.google-workspace]
+command = "uvx"
+args = ["workspace-mcp"]
+env = { GOOGLE_OAUTH_CLIENT_ID = "${GOOGLE_OAUTH_CLIENT_ID}", GOOGLE_OAUTH_CLIENT_SECRET = "${GOOGLE_OAUTH_CLIENT_SECRET}", USER_GOOGLE_EMAIL = "${USER_GOOGLE_EMAIL}" }
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+env = { CONTEXT7_API_KEY = "${CONTEXT7_API_KEY}" }
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["--registry=https://registry.npmjs.org/", "-y", "@playwright/mcp"]

@@ -9,7 +9,8 @@
     "disableAutoUpdate": false,
     "enablePromptCompletion": true,
     "previewFeatures": true,
-    "enableAutoUpdate": true
+    "enableAutoUpdate": true,
+    "defaultApprovalMode": "auto_edit"
   },
   "hooks": {
     "PreCompress": [
@@ -53,6 +54,32 @@
     },
     "google-workspace": {
       "command": "$HOME/.gemini/mcp-servers/google-workspace/start.sh"
+    },
+    "jira": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--env",
+        "JIRA_EMAIL",
+        "--env",
+        "JIRA_TOKEN",
+        "--env",
+        "JIRA_URL",
+        "${JIRA_MCP_IMAGE}"
+      ],
+      "env": {
+        "JIRA_TOKEN": "${JIRA_TOKEN}"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "--registry=https://registry.npmjs.org/",
+        "-y",
+        "@playwright/mcp"
+      ]
     }
   },
   "output": {

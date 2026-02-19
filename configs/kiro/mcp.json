@@ -96,8 +96,9 @@
     "playwright": {
       "command": "npx",
       "args": [
+        "--registry=https://registry.npmjs.org/",
         "-y",
-        "@anthropic/mcp-server-playwright"
+        "@playwright/mcp"
       ],
       "disabled": false
     }

@@ -35,6 +35,83 @@
     ]
   },
   "outputStyle": "default",
+  "mcpServers": {
+    "jira": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--env",
+        "JIRA_EMAIL",
+        "--env",
+        "JIRA_TOKEN",
+        "--env",
+        "JIRA_URL",
+        "${JIRA_MCP_IMAGE}"
+      ],
+      "env": {
+        "JIRA_TOKEN": "${JIRA_TOKEN}"
+      }
+    },
+    "gitlab": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--env",
+        "GITLAB_TOKEN",
+        "${GITLAB_MCP_IMAGE}"
+      ],
+      "env": {
+        "GITLAB_TOKEN": "${GITLAB_TOKEN}"
+      }
+    },
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "${GITHUB_MCP_IMAGE}"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_PAT}"
+      }
+    },
+    "google-workspace": {
+      "command": "uvx",
+      "args": [
+        "workspace-mcp"
+      ],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+        "USER_GOOGLE_EMAIL": "${USER_GOOGLE_EMAIL}"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "--registry=https://registry.npmjs.org/",
+        "-y",
+        "@playwright/mcp"
+      ]
+    }
+  },
   "statusLine": {
     "command": "~/.claude/statusline.sh",
     "padding": 0,
