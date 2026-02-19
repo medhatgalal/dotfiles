@@ -41,7 +41,7 @@ status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-rem
 [mcp_servers.jira]
 command = "docker"
 args = ["run", "--rm", "-i", "--env", "JIRA_EMAIL", "--env", "JIRA_TOKEN", "--env", "JIRA_URL", "${JIRA_MCP_IMAGE}"]
-env = { JIRA_TOKEN = "${JIRA_TOKEN}" }
+env = { JIRA_TOKEN = "${JIRA_TOKEN}", JIRA_EMAIL = "${JIRA_EMAIL}", JIRA_URL = "${JIRA_URL}" }
 
 [mcp_servers.gitlab]
 command = "docker"

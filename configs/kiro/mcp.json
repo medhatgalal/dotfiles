@@ -87,9 +87,9 @@
         "registry.gitlab.appian-stratus.com/appian/prod/jira-mcp-proxy/jira-mcp-proxy:latest"
       ],
       "env": {
-        "JIRA_EMAIL": "",
+        "JIRA_EMAIL": "${JIRA_EMAIL}",
         "JIRA_TOKEN": "${JIRA_TOKEN}",
-        "JIRA_URL": ""
+        "JIRA_URL": "${JIRA_URL}"
       },
       "disabled": true
     },

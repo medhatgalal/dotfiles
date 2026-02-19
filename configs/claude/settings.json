@@ -51,7 +51,9 @@
         "${JIRA_MCP_IMAGE}"
       ],
       "env": {
-        "JIRA_TOKEN": "${JIRA_TOKEN}"
+        "JIRA_TOKEN": "${JIRA_TOKEN}",
+        "JIRA_EMAIL": "${JIRA_EMAIL}",
+        "JIRA_URL": "${JIRA_URL}"
       }
     },
     "gitlab": {
