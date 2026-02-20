@@ -172,7 +172,9 @@ ensure_repo_dolt_backend() {
   tmp="$(mktemp)"
   bd doctor --json > "$tmp" 2>/dev/null || true
 
-  backend="$(jq -r '.checks[] | select(.name=="Backend Migration") | .message // ""' "$tmp" 2>/dev/null || true)"
+  # Check either "Backend Migration" (legacy) or "Database" (new) or "Database Config"
+  backend="$(jq -r '.checks[] | select(.name=="Backend Migration" or .name=="Database" or .name=="Database Config") | (.detail // "") + " " + (.message // "")' "$tmp" 2>/dev/null || true)"
+  
   if [[ "$backend" == *"SQLite"* ]]; then
     log WARN "Backend is SQLite; attempting migration to Dolt"
     safe_stop_bd_daemons
@@ -190,6 +192,7 @@ ensure_repo_dolt_backend() {
 
   # Final checks.
   bd doctor --json > "$tmp" 2>/dev/null || true
+  safe_stop_bd_daemons
 
   if jq -e '.checks[] | select(((.detail // "") + " " + (.message // "")) | test("requires CGO|not available on this build"; "i"))' "$tmp" >/dev/null 2>&1; then
     log ERROR "CGO/Dolt regression detected in repo-local self-heal"
@@ -197,8 +200,10 @@ ensure_repo_dolt_backend() {
     return 1
   fi
 
-  if ! jq -e '.checks[] | select(.name=="Backend Migration" and (.message|test("Dolt";"i")))' "$tmp" >/dev/null 2>&1; then
+  if ! jq -e '.checks[] | select((.name=="Backend Migration" or .name=="Database" or .name=="Database Config") and (((.detail // "") + " " + (.message // "")) | contains("Dolt")))' "$tmp" >/dev/null 2>&1; then
     log ERROR "Repo backend is not Dolt after self-heal"
+    # Debug info
+    jq -c '.checks[] | select(.name=="Backend Migration" or .name=="Database" or .name=="Database Config")' "$tmp" 2>/dev/null || true
     rm -f "$tmp"
     return 1
   fi
