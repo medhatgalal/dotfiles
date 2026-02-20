@@ -114,7 +114,7 @@ if prompt "Update Homebrew and core formulae?" "Y"; then
   capture_versions
   
   # Group update and upgrade into one spinner task to reduce jumps
-  run_task "Updating Homebrew & Packages..." bash -c 'brew update && brew upgrade --formula'
+  run_task "Updating Homebrew & Packages..." bash -c 'brew update && brew upgrade --formula' || true
 
   # Capture outdated for reporting (post-facto from log or just tracking)
   # We rely on version comparison now, which is faster/cleaner.
@@ -142,7 +142,7 @@ fi
 if prompt "Update Oh My Zsh?" "Y"; then
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
     old="$(git -C "$HOME/.oh-my-zsh" rev-parse --short HEAD 2>/dev/null || true)"
-    run_task "Updating Oh My Zsh..." env ZSH="$HOME/.oh-my-zsh" sh "$HOME/.oh-my-zsh/tools/upgrade.sh" --non-interactive
+    run_task "Updating Oh My Zsh..." env ZSH="$HOME/.oh-my-zsh" sh "$HOME/.oh-my-zsh/tools/upgrade.sh" --non-interactive || true
     track "oh-my-zsh" "$old" "$(git -C "$HOME/.oh-my-zsh" rev-parse --short HEAD 2>/dev/null || true)"
   fi
 fi
@@ -167,7 +167,7 @@ if prompt "Update npm global AI CLIs?" "Y"; then
       
       # If package is missing OR in outdated JSON, update/install it
       if [[ "$old" == "Not Installed" ]] || echo "$OUTDATED_JSON" | grep -q "\"$pkg\""; then
-        run_task "Updating/Installing $pkg..." npm install -g "$pkg"
+        run_task "Updating/Installing $pkg..." npm install -g "$pkg" || true
       else
         echo "npm install -g $pkg (skipped, up to date)" >> "$LOG_FILE"
       fi
