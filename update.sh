@@ -101,7 +101,9 @@ declare -A OLD_VERSIONS
 capture_versions() {
   for pkg in "${BASELINE_PACKAGES[@]}"; do
     OLD_VERSIONS[$pkg]="$(brew_ver "$pkg")"
-    [[ -z "${OLD_VERSIONS[$pkg]}" ]] && OLD_VERSIONS[$pkg]="Not Installed"
+    if [[ -z "${OLD_VERSIONS[$pkg]}" ]]; then
+      OLD_VERSIONS[$pkg]="Not Installed"
+    fi
   done
 }
 
