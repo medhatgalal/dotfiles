@@ -6,6 +6,7 @@ LOG_FILE="update_log.txt"
 REPORT_FILE="update_summary.txt"
 UPDATED_LOG="$(mktemp)"
 UNCHANGED_LOG="$(mktemp)"
+START_TIME=$(date +%s)
 trap 'rm -f "$UPDATED_LOG" "$UNCHANGED_LOG"' EXIT
 
 # Baseline packages to track explicitly
@@ -30,9 +31,49 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-exec > >(tee -a "$LOG_FILE") 2>&1
+# We want stdout to user, but detailed logs to file.
+# We'll redirect specific verbose commands to LOG_FILE, but keep main output visible.
+# Actually, the original script redirected EVERYTHING to LOG_FILE and tee-d to stdout.
+# That's why it was noisy. But user says "it feels like hanging", which usually means SILENCE.
+# If it's slow and silent, they need a spinner.
+# If it's slow and noisy, they see progress.
+# The user asked for a spinner, implying they want to know it's working during long silent blocks.
+
+# Redirecting only specific noisy commands to log file to keep UI clean,
+# but using a spinner for them.
 
 log() { printf '[%s] %s\n' "$1" "$2"; }
+
+spinner() {
+  local pid=$1
+  local delay=0.1
+  local spinstr='|/-\'
+  while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+    local temp=${spinstr#?}
+    printf " [%c]  " "$spinstr"
+    local spinstr=$temp${spinstr%"$temp"}
+    sleep $delay
+    printf "\b\b\b\b\b\b"
+  done
+  printf "    \b\b\b\b"
+}
+
+run_with_spinner() {
+  local msg="$1"
+  shift
+  printf "[INFO] %s " "$msg"
+  "$@" >> "$LOG_FILE" 2>&1 &
+  local pid=$!
+  spinner $pid
+  wait $pid
+  local exit_code=$?
+  if [ $exit_code -eq 0 ]; then
+    printf "✔\n"
+  else
+    printf "✖ (See %s)\n" "$LOG_FILE"
+  fi
+  return $exit_code
+}
 
 prompt() {
   local q="$1"
@@ -58,10 +99,10 @@ track() {
   new="${new:-Unknown}"
   if [[ "$old" != "$new" ]]; then
     echo "$name|$old|$new" >> "$UPDATED_LOG"
-    log OK "$name updated ($old -> $new)"
+    # log OK "$name updated ($old -> $new)" # Suppress individual update noise in main UI
   else
     echo "$name|$new" >> "$UNCHANGED_LOG"
-    log INFO "$name unchanged ($new)"
+    # log INFO "$name unchanged ($new)" # Suppress noise
   fi
 }
 
@@ -95,28 +136,29 @@ echo "System update started: $(date)"
 echo "Mode: $( [[ "$INTERACTIVE" == "1" ]] && echo Interactive || echo Automatic )"
 echo "=========================================="
 
+# Clear log file
+: > "$LOG_FILE"
+
 if ! have brew; then
   log ERROR "Homebrew is required"
   exit 1
 fi
 
 if prompt "Update Homebrew and core formulae?" "Y"; then
-  # Capture baseline versions first
   capture_versions
 
-  brew update
+  run_with_spinner "Updating Homebrew..." brew update
+  
   OUTDATED_FORMULAE="$(brew outdated --verbose --formula || true)"
   OUTDATED_CASKS="$(brew outdated --verbose --cask || true)"
-  brew upgrade --formula
+  
+  run_with_spinner "Upgrading formulae..." brew upgrade --formula
 
   # Track general updates from output parsing (fallback/extra)
   if [[ -n "$OUTDATED_FORMULAE" ]]; then
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
-      # Regex matches: name (old) < new
       if [[ "$line" =~ ^([^[:space:]]+)[[:space:]]+\((.*)\)[[:space:]]+\<[[:space:]]+(.*)$ ]]; then
-        # Only add if not in baseline (to avoid duplicates, or handle baseline separately)
-        # Actually, let's just add everything here for the record, but track() handles baseline specially below
         echo "${BASH_REMATCH[1]}|${BASH_REMATCH[2]}|${BASH_REMATCH[3]}" >> "$UPDATED_LOG"
       fi
     done <<< "$OUTDATED_FORMULAE"
@@ -126,17 +168,14 @@ if prompt "Update Homebrew and core formulae?" "Y"; then
     log INFO "Skipping Homebrew cask upgrades by default (may require sudo)."
   fi
 
-  # Verify baseline packages and track changes using captured previous versions
+  # Verify baseline packages and track changes
+  # We do this quietly without spinner as it's fast per package usually
   for pkg in "${BASELINE_PACKAGES[@]}"; do
     if ! brew list --versions "$pkg" >/dev/null 2>&1; then
-      brew install "$pkg"
+      run_with_spinner "Installing $pkg..." brew install "$pkg"
     fi
     new="$(brew_ver "$pkg")"
     old="${PRE_UPDATE_VERSIONS[$pkg]:-Unknown}"
-    
-    # Avoid duplicate reporting if parsing caught it, but we prefer explicit tracking
-    # We will rely on track() to log it. If it's already in UPDATED_LOG from parsing, this appends.
-    # To be clean, we trust track() for baseline.
     track "$pkg" "$old" "$new"
   done
 
@@ -144,7 +183,7 @@ if prompt "Update Homebrew and core formulae?" "Y"; then
     old="$(brew_cask_ver font-meslo-lg-nerd-font)"
     if ! brew list --cask --versions font-meslo-lg-nerd-font >/dev/null 2>&1; then
       brew tap homebrew/cask-fonts >/dev/null 2>&1 || true
-      brew install --cask font-meslo-lg-nerd-font >/dev/null 2>&1 || log WARN "font-meslo-lg-nerd-font install failed"
+      run_with_spinner "Installing font-meslo-lg-nerd-font..." brew install --cask font-meslo-lg-nerd-font
     fi
     new="$(brew_cask_ver font-meslo-lg-nerd-font)"
     track "font-meslo-lg-nerd-font(cask)" "$old" "$new"
@@ -152,16 +191,17 @@ if prompt "Update Homebrew and core formulae?" "Y"; then
     log INFO "Skipping cask operations."
   fi
 
-  brew cleanup
+  run_with_spinner "Cleaning up Homebrew..." brew cleanup
 fi
 
 if prompt "Update Oh My Zsh + plugins?" "Y"; then
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
     old="$(git -C "$HOME/.oh-my-zsh" rev-parse --short HEAD 2>/dev/null || true)"
     if [[ -f "$HOME/.oh-my-zsh/tools/upgrade.sh" ]]; then
-      zsh "$HOME/.oh-my-zsh/tools/upgrade.sh" || true
+      # Run in subshell to avoid env pollution and capture output
+      run_with_spinner "Updating Oh My Zsh..." zsh "$HOME/.oh-my-zsh/tools/upgrade.sh" --non-interactive
     elif have omz; then
-      omz update || true
+      run_with_spinner "Updating Oh My Zsh..." omz update
     fi
     new="$(git -C "$HOME/.oh-my-zsh" rev-parse --short HEAD 2>/dev/null || true)"
     track "oh-my-zsh" "$old" "$new"
@@ -170,7 +210,7 @@ if prompt "Update Oh My Zsh + plugins?" "Y"; then
       path="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/$plugin"
       if [[ -d "$path/.git" ]]; then
         old="$(git -C "$path" rev-parse --short HEAD 2>/dev/null || true)"
-        git -C "$path" pull >/dev/null 2>&1 || true
+        run_with_spinner "Updating $plugin..." git -C "$path" pull
         new="$(git -C "$path" rev-parse --short HEAD 2>/dev/null || true)"
         track "$plugin" "$old" "$new"
       fi
@@ -182,8 +222,7 @@ fi
 
 if prompt "Update Beads (bd)?" "Y"; then
   old="$(bd_ver)"
-  log INFO "Upgrading Beads..."
-  brew upgrade beads || brew reinstall beads
+  run_with_spinner "Upgrading Beads..." brew upgrade beads || brew reinstall beads
   hash -r 2>/dev/null || true
   new="$(bd_ver)"
   track "beads(bd)" "$old" "$new"
@@ -193,7 +232,7 @@ if prompt "Update npm global AI CLIs?" "Y"; then
   if have npm; then
     for pkg in @openai/codex @google/gemini-cli @google/jules specify-cli; do
       old="$(npm list -g "$pkg" --depth=0 2>/dev/null | grep -Eo "${pkg//@/\\@}@[0-9A-Za-z._-]+" | head -n1 | awk -F@ '{print $NF}' || true)"
-      npm install -g "$pkg" >/dev/null 2>&1 || true
+      run_with_spinner "Updating $pkg..." npm install -g "$pkg"
       new="$(npm list -g "$pkg" --depth=0 2>/dev/null | grep -Eo "${pkg//@/\\@}@[0-9A-Za-z._-]+" | head -n1 | awk -F@ '{print $NF}' || true)"
       track "$pkg" "${old:-Unknown}" "${new:-Unknown}"
     done
@@ -202,15 +241,20 @@ if prompt "Update npm global AI CLIs?" "Y"; then
   fi
 fi
 
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+MINUTES=$((DURATION / 60))
+SECONDS=$((DURATION % 60))
+
 {
   echo "Update Summary - $(date)"
+  echo "Elapsed Time: ${MINUTES}m ${SECONDS}s"
   echo "=========================================="
   echo
   echo "UPDATED"
   echo "----------------"
   if [[ -s "$UPDATED_LOG" ]]; then
     echo "Software|Previous|Current"
-    # Sort and uniq to handle potential duplicates between parsing and tracking
     sort -u "$UPDATED_LOG"
   else
     echo "No updates applied."
@@ -230,6 +274,5 @@ fi
 cat "$REPORT_FILE"
 
 echo "=========================================="
-log OK "System update finished"
-log INFO "Log file: $LOG_FILE"
-log INFO "Summary: $REPORT_FILE"
+log OK "System update finished in ${MINUTES}m ${SECONDS}s"
+log INFO "Full log: $LOG_FILE"
