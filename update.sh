@@ -8,6 +8,9 @@ UPDATED_LOG="$(mktemp)"
 UNCHANGED_LOG="$(mktemp)"
 trap 'rm -f "$UPDATED_LOG" "$UNCHANGED_LOG"' EXIT
 
+# Baseline packages to track explicitly
+BASELINE_PACKAGES=(git jq node python3 tmux awscli eza bat fd ripgrep fzf zoxide tree)
+
 usage() {
   cat <<'USAGE'
 Usage: ./update.sh [options]
@@ -75,6 +78,18 @@ bd_ver() {
   bd version 2>/dev/null | awk 'NR==1{print $3}'
 }
 
+# Capture versions before update
+declare -A PRE_UPDATE_VERSIONS
+capture_versions() {
+  for pkg in "${BASELINE_PACKAGES[@]}"; do
+    if brew list --versions "$pkg" >/dev/null 2>&1; then
+      PRE_UPDATE_VERSIONS[$pkg]="$(brew_ver "$pkg")"
+    else
+      PRE_UPDATE_VERSIONS[$pkg]="Not Installed"
+    fi
+  done
+}
+
 echo "=========================================="
 echo "System update started: $(date)"
 echo "Mode: $( [[ "$INTERACTIVE" == "1" ]] && echo Interactive || echo Automatic )"
@@ -86,15 +101,22 @@ if ! have brew; then
 fi
 
 if prompt "Update Homebrew and core formulae?" "Y"; then
+  # Capture baseline versions first
+  capture_versions
+
   brew update
   OUTDATED_FORMULAE="$(brew outdated --verbose --formula || true)"
   OUTDATED_CASKS="$(brew outdated --verbose --cask || true)"
   brew upgrade --formula
 
+  # Track general updates from output parsing (fallback/extra)
   if [[ -n "$OUTDATED_FORMULAE" ]]; then
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
+      # Regex matches: name (old) < new
       if [[ "$line" =~ ^([^[:space:]]+)[[:space:]]+\((.*)\)[[:space:]]+\<[[:space:]]+(.*)$ ]]; then
+        # Only add if not in baseline (to avoid duplicates, or handle baseline separately)
+        # Actually, let's just add everything here for the record, but track() handles baseline specially below
         echo "${BASH_REMATCH[1]}|${BASH_REMATCH[2]}|${BASH_REMATCH[3]}" >> "$UPDATED_LOG"
       fi
     done <<< "$OUTDATED_FORMULAE"
@@ -104,12 +126,17 @@ if prompt "Update Homebrew and core formulae?" "Y"; then
     log INFO "Skipping Homebrew cask upgrades by default (may require sudo)."
   fi
 
-  for pkg in git jq node python3 tmux awscli eza bat fd ripgrep fzf zoxide tree; do
-    old="$(brew_ver "$pkg")"
+  # Verify baseline packages and track changes using captured previous versions
+  for pkg in "${BASELINE_PACKAGES[@]}"; do
     if ! brew list --versions "$pkg" >/dev/null 2>&1; then
       brew install "$pkg"
     fi
     new="$(brew_ver "$pkg")"
+    old="${PRE_UPDATE_VERSIONS[$pkg]:-Unknown}"
+    
+    # Avoid duplicate reporting if parsing caught it, but we prefer explicit tracking
+    # We will rely on track() to log it. If it's already in UPDATED_LOG from parsing, this appends.
+    # To be clean, we trust track() for baseline.
     track "$pkg" "$old" "$new"
   done
 
@@ -183,7 +210,8 @@ fi
   echo "----------------"
   if [[ -s "$UPDATED_LOG" ]]; then
     echo "Software|Previous|Current"
-    sort "$UPDATED_LOG"
+    # Sort and uniq to handle potential duplicates between parsing and tracking
+    sort -u "$UPDATED_LOG"
   else
     echo "No updates applied."
   fi | column -t -s "|"
