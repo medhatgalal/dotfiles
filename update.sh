@@ -10,7 +10,7 @@ START_TIME=$(date +%s)
 trap 'rm -f "$UPDATED_LOG" "$UNCHANGED_LOG"' EXIT
 
 # Baseline packages to track
-BASELINE_PACKAGES=(git jq node python3 tmux awscli eza bat fd ripgrep fzf zoxide tree)
+BASELINE_PACKAGES=(git jq node python3 tmux pre-commit awscli eza bat fd ripgrep fzf zoxide tree)
 
 usage() {
   cat <<'USAGE'
@@ -163,11 +163,11 @@ if prompt "Update npm global AI CLIs?" "Y"; then
     OUTDATED_JSON=$(npm outdated -g --json 2>/dev/null || echo "{}")
     
     for pkg in "${NPM_PACKAGES[@]}"; do
-      old="$(npm list -g "$pkg" --depth=0 2>/dev/null | grep -Eo "${pkg//@/\\@}@[0-9A-Za-z._-]+" | head -n1 | awk -F@ '{print $NF}' || echo "Unknown")"
+      old="$(npm list -g "$pkg" --depth=0 2>/dev/null | grep -Eo "${pkg//@/\\@}@[0-9A-Za-z._-]+" | head -n1 | awk -F@ '{print $NF}' || echo "Not Installed")"
       
-      # If package is in outdated JSON, update it
-      if echo "$OUTDATED_JSON" | grep -q "\"$pkg\""; then
-        run_task "Updating $pkg..." npm install -g "$pkg"
+      # If package is missing OR in outdated JSON, update/install it
+      if [[ "$old" == "Not Installed" ]] || echo "$OUTDATED_JSON" | grep -q "\"$pkg\""; then
+        run_task "Updating/Installing $pkg..." npm install -g "$pkg"
       else
         echo "npm install -g $pkg (skipped, up to date)" >> "$LOG_FILE"
       fi
