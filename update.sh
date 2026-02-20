@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Prevent Homebrew from running cleanup and potentially hanging/prompting
-export HOMEBREW_NO_INSTALL_CLEANUP=1
-
 INTERACTIVE=0
 LOG_FILE="update_log.txt"
 REPORT_FILE="update_summary.txt"
@@ -107,15 +104,14 @@ verify_bd_dolt_runtime() {
   out="$(mktemp)"
   doctor="$(mktemp)"
 
-  (
-    cd "$tmp"
-    git init -q >/dev/null 2>&1 || true
-    if ! bd init --quiet >"$out" 2>&1; then
-      echo "bd init failed"
-      cat "$out"
-      exit 1
-    fi
-    bd doctor --json >"$doctor" 2>>"$out" || true
+      (
+      cd "$tmp"
+      git init -q >/dev/null 2>&1 || true
+      if ! echo n | bd init --quiet >"$out" 2>&1; then
+        echo "bd init failed"
+        cat "$out"
+        exit 1
+      fi    bd doctor --json >"$doctor" 2>>"$out" || true
   )
   rc=$?
 
