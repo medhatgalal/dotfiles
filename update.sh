@@ -156,8 +156,7 @@ repo_has_beads() {
 }
 
 safe_stop_bd_daemons() {
-  bd daemon killall >/dev/null 2>&1 || true
-  bd daemons stop "$PWD" >/dev/null 2>&1 || true
+  bd dolt stop >/dev/null 2>&1 || true
 }
 
 ensure_repo_dolt_backend() {
