@@ -17,8 +17,8 @@ This package installs a minimal, portable local environment for EngOS workflows:
 - `~/.tmux.conf`, `~/.local/bin/{pty-clean-safe,tmux-*}`
 - `~/.gemini/settings.json`, `~/.gemini/AGENTS.md`, `~/.gemini/GEMINI.md`
 - `~/.claude/settings.json`, `~/.claude/AGENTS.md`, `~/.claude/CLAUDE.md`
-- `~/.kiro/settings/{cli.json,mcp.json}`, `~/.kiro/steering/AGENTS.md`
-- `~/.codex/AGENTS.md`
+- `~/.kiro/settings/{cli.json,mcp.json,lsp.json}`, `~/.kiro/steering/AGENTS.md`
+- `~/.codex/{config.toml,AGENTS.md}`
 - `~/update_software.sh`
 
 ## Token Precedence
