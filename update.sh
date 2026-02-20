@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Prevent Homebrew from running cleanup and potentially hanging/prompting
+export HOMEBREW_NO_INSTALL_CLEANUP=1
+
 INTERACTIVE=0
 LOG_FILE="update_log.txt"
 REPORT_FILE="update_summary.txt"
