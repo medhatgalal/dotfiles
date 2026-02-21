@@ -56,20 +56,6 @@
         "JIRA_URL": "${JIRA_URL}"
       }
     },
-    "gitlab": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "--env",
-        "GITLAB_TOKEN",
-        "${GITLAB_MCP_IMAGE}"
-      ],
-      "env": {
-        "GITLAB_TOKEN": "${GITLAB_TOKEN}"
-      }
-    },
     "github": {
       "command": "docker",
       "args": [
@@ -78,7 +64,8 @@
         "--rm",
         "-e",
         "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "${GITHUB_MCP_IMAGE}"
+        "${GITHUB_MCP_IMAGE}",
+        "stdio"
       ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_PAT}"

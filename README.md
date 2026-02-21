@@ -27,8 +27,10 @@ Features:
 
 ## Token Precedence
 
-- Set `GITLAB_TOKEN` in `~/.secrets.env` as the canonical GitLab token.
-- All CLI MCP configs (`codex`, `claude`, `gemini`, `kiro`) read `GITLAB_TOKEN` directly.
+- Set `GITLAB_TOKEN` in `~/.secrets.env` as the canonical GitLab token for git operations.
+- Set `GITLAB_MCP_TOKEN` as a read-only token for MCP servers.
+- Recommended scopes are `read_api`, `read_repository`, `read_user`, `read_registry`.
+- GitLab MCP is disabled by default; enable only after setting a read-only `GITLAB_MCP_TOKEN`.
 
 ## What Is Not Managed
 
