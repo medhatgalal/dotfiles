@@ -3,16 +3,20 @@
 Canonical path on this machine: `~/Desktop/dotfiles`.
 Embedded copies also live at `scripts/setup/dotfiles` inside repos.
 
-This package installs a minimal, portable local environment for EngOS workflows:
-- guarded zsh startup (PTY-safe Kiro bootstrap)
-- explicit zsh vi-mode defaults for interactive shells
-- automatic Powerlevel10k Meslo Nerd Font installation
-- generic tmux UX helpers (main/watcher pane flow)
-- minimal CLI config files (`.gemini`, `.claude`, `.kiro`, AGENTS docs)
-- software updater with strict Beads Dolt+CGO verification and self-heal
+This package installs a minimal, portable local environment for EngOS workflows. It has been designed to be transparent, educational, and safe.
+
+Features:
+- Initial environment audit before making any changes.
+- Choice between a safe **Additive Install** (tools only) and a **Clean Install** (full shell configuration).
+- Explicit `y/N` opt-in prompts (no "shock and awe" overwrites).
+- Safe, automatic Powerlevel10k and Meslo Nerd Font installation (bypassing the wizard).
+- Generic tmux UX helpers (main/watcher pane flow).
+- Minimal CLI config files (`.gemini`, `.claude`, `.kiro`, AGENTS docs).
+- Granular, interactive software updater with previews (`update.sh`).
 
 ## What Is Managed
 
+- **Core Tools:** `git`, `jq`, `node`, `python3`, `tmux`, `pre-commit`, `awscli`, `eza`, `bat`, `fd`, `ripgrep`, `fzf`, `zoxide`, `tree`, `glab`, `kiro`, `kiro-cli`, `beads`, `beads-viewer`, `uv`, and `specify-cli`.
 - `~/.zshenv`, `~/.zprofile`, `~/.zshrc`, `~/.zsh/aliases/*.zsh`
 - `~/.tmux.conf`, `~/.local/bin/{pty-clean-safe,tmux-*}`
 - `~/.gemini/settings.json`, `~/.gemini/AGENTS.md`, `~/.gemini/GEMINI.md`
@@ -35,18 +39,20 @@ This package installs a minimal, portable local environment for EngOS workflows:
 
 ## Install
 
+By default, the installer runs interactively. It performs an audit and asks you to choose between an Additive or Clean install.
+
 ```bash
 cd ~/Desktop/dotfiles
 ./install.sh
 ```
 
-Non-interactive:
+Non-interactive (Defaults to safe Additive Install):
 
 ```bash
 ./install.sh --yes
 ```
 
-Dry run:
+Dry run (Preview what will happen without writing files):
 
 ```bash
 ./install.sh --dry-run
@@ -58,22 +64,19 @@ Install into a local repo path (intent: embed this package into the repo):
 ./install.sh --repo-path ~/Desktop/shapeup-base-v6clone
 ```
 
-Result:
-- `~/Desktop/shapeup-base-v6clone/scripts/setup/dotfiles` becomes the repo-local install source.
-
 ## Update Software + Beads Runtime
 
+By default, the updater runs interactively. It previews available updates (e.g., via `brew outdated`) before prompting.
+
 ```bash
-~/update_software.sh -i
+~/update_software.sh
 ```
 
-This updater enforces:
-- Homebrew `bd` install path
-- Dolt backend runtime validation (`bd init --backend dolt` smoke test)
-- CGO regression detection
-- repo-local Beads self-heal when run inside a repo with `.beads/`
-- core shell tools including `eza`, `bat`, `fd`, `ripgrep`, `fzf`, `zoxide`, and `tree`
-- Meslo Nerd Font cask (`font-meslo-lg-nerd-font`)
+Non-interactive update (auto-accepts all updates):
+
+```bash
+~/update_software.sh --yes
+```
 
 ## Shell Ergonomics
 

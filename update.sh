@@ -12,11 +12,19 @@ trap 'rm -f "$UPDATED_LOG" "$UNCHANGED_LOG" "$FAILED_LOG"' EXIT
 
 usage() {
   cat <<'USAGE'
+EngOS System Updater
+
 Usage: ./update.sh [options]
+
+Description:
+  Discovers and applies updates for Homebrew packages, Oh-My-Zsh,
+  NPM globals, and Beads. By default, it runs interactively,
+  previewing available updates and asking for confirmation before
+  applying them to each component group.
 
 Options:
   -y, --yes         Non-interactive mode (automatically update everything)
-  -h, --help        Show help
+  -h, --help        Show this help message
 USAGE
 }
 

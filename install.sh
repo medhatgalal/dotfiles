@@ -20,13 +20,21 @@ log() { printf '[%s] %s\n' "$1" "$2"; }
 
 usage() {
   cat <<'USAGE'
+EngOS Dotfiles & Environment Installer
+
 Usage: ./install.sh [options]
 
+Description:
+  Installs core CLI utilities, AI tools, and shell configurations.
+  By default, it runs interactively, performs an environment audit,
+  and asks whether you want a safe "Additive" install (tools only)
+  or a "Clean" install (full shell config takeover with backups).
+
 Options:
-  --dry-run     Show actions without writing files
-  --yes         Non-interactive install (accept defaults)
+  --dry-run     Show actions without writing files or making changes
+  --yes         Non-interactive install (accepts defaults: Additive mode)
   --repo-path   Also install this package into <repo>/scripts/setup/dotfiles
-  -h, --help    Show help
+  -h, --help    Show this help message
 USAGE
 }
 
