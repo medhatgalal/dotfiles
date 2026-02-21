@@ -60,17 +60,14 @@
       "disabled": false
     },
     "memory": {
-      "command": "docker",
+      "command": "npx",
       "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-v",
-        "${HOME}/repo/agentic-ai-codebases:/data",
-        "--env",
-        "MEMORY_FILE_PATH=/data/memory.json",
-        "mcp/memory"
-      ]
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "${HOME}/.mcp_shared_memory.json"
+      }
     },
     "jira": {
       "command": "docker",

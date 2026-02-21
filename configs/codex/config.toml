@@ -63,6 +63,11 @@ command = "npx"
 args = ["-y", "@upstash/context7-mcp"]
 env = { CONTEXT7_API_KEY = "${CONTEXT7_API_KEY}" }
 
+[mcp_servers.memory]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-memory"]
+env = { MEMORY_FILE_PATH = "${HOME}/.mcp_shared_memory.json" }
+
 [mcp_servers.playwright]
 command = "npx"
 args = ["--registry=https://registry.npmjs.org/", "-y", "@playwright/mcp"]

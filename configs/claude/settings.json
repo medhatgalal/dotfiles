@@ -105,6 +105,16 @@
         "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
       }
     },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "${HOME}/.mcp_shared_memory.json"
+      }
+    },
     "playwright": {
       "command": "npx",
       "args": [

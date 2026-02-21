@@ -64,6 +64,16 @@ Install into a local repo path (intent: embed this package into the repo):
 ./install.sh --repo-path ~/Desktop/shapeup-base-v6clone
 ```
 
+## Addendum: Why Choose a Clean Install?
+When you run the dotfiles installer interactively, you are offered an **Additive Install** (safe, installs only missing tools) or a **Clean Install** (a full, opinionated environment upgrade).
+
+Here is why you should consider a **Clean Install**:
+- **Snappier Zsh Experience:** We replace generic zsh loading with explicit, optimized `vi-mode` defaults, making terminal sessions faster and more predictable.
+- **Automated & Safe P10K:** The `p10k` config wizard frequently "blows up" terminals or requires manual font fetching. The clean install entirely bypasses the wizard, silently installing the `MesloLGS Nerd Font` and injecting a guaranteed-stable, visually rich prompt.
+- **Preconfigured Tmux UX:** Out of the box, you get a main/watcher pane workflow pattern. Custom helpers (`tmux-main-watch`, `tmux-copy-main`) allow seamless context switching.
+- **Centralized Secrets Management:** It drops a structured `~/.secrets.env` template. All your tokens (like `GITLAB_READ_WRITE_TOKEN`) are securely unified in one place, preventing token sprawl across disparate configs.
+- **Unified AI Memory & Tooling:** A Clean install aligns your environment to a shared standard. Your `gemini`, `claude`, `codex`, and `kiro` CLI configurations are modularly mapped, including a **Shared MCP Memory Server** so context persists seamlessly across all AI clients.
+
 ## Update Software + Beads Runtime
 
 By default, the updater runs interactively. It previews available updates (e.g., via `brew outdated`) before prompting.

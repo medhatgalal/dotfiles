@@ -31,6 +31,7 @@ USAGE
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -y|--yes) INTERACTIVE=0 ;;
+    -i|--interactive) INTERACTIVE=1 ;; # Legacy flag, now the default
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
   esac
