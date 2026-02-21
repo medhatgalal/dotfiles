@@ -38,19 +38,9 @@ prevent_idle_sleep = true
 [tui]
 status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-remaining"]
 
-[mcp_servers.jira]
-command = "docker"
-args = ["run", "--rm", "-i", "--env", "JIRA_EMAIL", "--env", "JIRA_TOKEN", "--env", "JIRA_URL", "${JIRA_MCP_IMAGE}"]
-env = { JIRA_TOKEN = "${JIRA_TOKEN}", JIRA_EMAIL = "${JIRA_EMAIL}", JIRA_URL = "${JIRA_URL}" }
-
-[mcp_servers.gitlab]
-command = "docker"
-args = ["run", "--rm", "-i", "--env", "GITLAB_TOKEN", "${GITLAB_MCP_IMAGE}"]
-env = { GITLAB_TOKEN = "${GITLAB_TOKEN}" }
-
 [mcp_servers.github]
 command = "docker"
-args = ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "${GITHUB_MCP_IMAGE}"]
+args = ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server", "stdio"]
 env = { GITHUB_PERSONAL_ACCESS_TOKEN = "${GITHUB_MCP_PAT}" }
 
 [mcp_servers.google-workspace]
@@ -62,6 +52,11 @@ env = { GOOGLE_OAUTH_CLIENT_ID = "${GOOGLE_OAUTH_CLIENT_ID}", GOOGLE_OAUTH_CLIEN
 command = "npx"
 args = ["-y", "@upstash/context7-mcp"]
 env = { CONTEXT7_API_KEY = "${CONTEXT7_API_KEY}" }
+
+[mcp_servers.memory]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-memory"]
+env = { MEMORY_FILE_PATH = "${HOME}/.mcp_shared_memory.json" }
 
 [mcp_servers.playwright]
 command = "npx"

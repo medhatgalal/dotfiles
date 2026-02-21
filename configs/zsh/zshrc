@@ -40,10 +40,22 @@ export PATH="$VOLTA_HOME/bin:$PATH"
 # Load local secrets when present.
 [[ -f ~/.secrets.env ]] && source ~/.secrets.env
 
-# Prefer write-capable GitLab token when present.
-if [[ -n "${GITLAB_READ_WRITE_TOKEN:-}" ]]; then
-  export GITLAB_TOKEN="${GITLAB_READ_WRITE_TOKEN}"
+# GitLab MCP prefers a read-only token; fall back to canonical token if unset.
+if [[ -z "${GITLAB_MCP_TOKEN:-}" && -n "${GITLAB_TOKEN:-}" ]]; then
+  export GITLAB_MCP_TOKEN="${GITLAB_TOKEN}"
 fi
+
+# Default glab host to self-hosted GitLab unless explicitly overridden.
+export GLAB_HOST="${GLAB_HOST:-gitlab.appian-stratus.com}"
+
+# Route glab auth through explicit write token when provided.
+glab() {
+  if [[ -n "${GLAB_WRITE:-}" ]]; then
+    GITLAB_TOKEN="${GLAB_WRITE}" command glab "$@"
+  else
+    command glab "$@"
+  fi
+}
 
 # Completions
 if [[ -d ${HOME}/.docker/completions ]]; then

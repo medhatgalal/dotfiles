@@ -1,27 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INTERACTIVE=0
+INTERACTIVE=1
 LOG_FILE="update_log.txt"
 REPORT_FILE="update_summary.txt"
 UPDATED_LOG="$(mktemp)"
 UNCHANGED_LOG="$(mktemp)"
+FAILED_LOG="$(mktemp)"
 START_TIME=$(date +%s)
-trap 'rm -f "$UPDATED_LOG" "$UNCHANGED_LOG"' EXIT
+trap 'rm -f "$UPDATED_LOG" "$UNCHANGED_LOG" "$FAILED_LOG"' EXIT
 
 usage() {
   cat <<'USAGE'
+EngOS System Updater
+
 Usage: ./update.sh [options]
 
+Description:
+  Discovers and applies updates for Homebrew packages, Oh-My-Zsh,
+  NPM globals, and Beads. By default, it runs interactively,
+  previewing available updates and asking for confirmation before
+  applying them to each component group.
+
 Options:
-  -i, --interactive   Prompt before each update group
-  -h, --help          Show help
+  -y, --yes         Non-interactive mode (automatically update everything)
+  -h, --help        Show this help message
 USAGE
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -i|--interactive) INTERACTIVE=1 ;;
+    -y|--yes) INTERACTIVE=0 ;;
+    -i|--interactive) INTERACTIVE=1 ;; # Legacy flag, now the default
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
   esac
@@ -52,7 +62,6 @@ run_task() {
   local msg="$1"
   shift
   printf "[INFO] %-40s" "$msg"
-  # Run command, redirect output to log, background it
   "$@" >> "$LOG_FILE" 2>&1 &
   local pid=$!
   spinner $pid
@@ -62,6 +71,7 @@ run_task() {
     printf "✔\n"
   else
     printf "✖\n"
+    echo "$msg" >> "$FAILED_LOG"
   fi
   return $exit_code
 }
@@ -88,7 +98,7 @@ track() {
   local name="$1" old="$2" new="$3"
   old="${old:-Unknown}"
   new="${new:-Unknown}"
-  if [[ "$old" != "$new" ]]; then
+  if [[ "$old" != "$new" && "$new" != "Unknown" && "$new" != "Not Installed" ]]; then
     echo "$name|$old|$new" >> "$UPDATED_LOG"
   else
     echo "$name|$new" >> "$UNCHANGED_LOG"
@@ -97,8 +107,8 @@ track() {
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
-brew_ver() { brew list --versions "$1" 2>/dev/null | awk '{print $NF}'; }
-brew_cask_ver() { brew list --cask --versions "$1" 2>/dev/null | awk '{print $NF}'; }
+brew_ver() { brew list --versions "$1" 2>/dev/null | awk '{print $NF}' || echo "Unknown"; }
+brew_cask_ver() { brew list --cask --versions "$1" 2>/dev/null | awk '{print $NF}' || echo "Unknown"; }
 
 bd_ver() {
   if ! have bd; then
@@ -110,60 +120,52 @@ bd_ver() {
 
 # --- Main Update Logic ---
 
-echo "=========================================="
-echo "System update started: $(date)"
-echo "Mode: $( [[ "$INTERACTIVE" == "1" ]] && echo Interactive || echo Automatic )"
-echo "=========================================="
+echo "======================================================================="
+echo "                  System Update & Discovery                            "
+echo "======================================================================="
+echo "Mode: $( [[ "$INTERACTIVE" == "1" ]] && echo "Interactive (Opt-in)" || echo "Automatic (--yes)" )"
+echo ""
 
 if ! have brew; then
   log ERROR "Homebrew is required"
   exit 1
 fi
 
-if prompt "Update Homebrew and core formulae?" "Y"; then
-  run_task "Updating Homebrew..." brew update
+# Pre-fetch outdated packages to show the user what will change
+echo "Discovering available updates... (This might take a moment)"
+run_task "Updating Homebrew index..." brew update
+
+OUTDATED_BREW="$(brew outdated --formula 2>/dev/null || true)"
+OUTDATED_CASK="$(brew outdated --cask 2>/dev/null || true)"
+
+if [[ -n "$OUTDATED_BREW" ]] || [[ -n "$OUTDATED_CASK" ]]; then
+  echo ""
+  echo "--- Available Homebrew Updates ---"
+  [[ -n "$OUTDATED_BREW" ]] && echo "$OUTDATED_BREW" | sed 's/^/  /'
+  [[ -n "$OUTDATED_CASK" ]] && echo "$OUTDATED_CASK" | sed 's/^/  /'
+  echo "----------------------------------"
+else
+  echo " ✓ Homebrew packages are up to date."
+fi
+echo ""
+
+if prompt "Upgrade outdated Homebrew formulae and casks?" "N"; then
+  run_task "Upgrading Homebrew formulae..." brew upgrade --formula
+  run_task "Upgrading Homebrew casks..." brew upgrade --cask
   
-  # Capture outdated list for logging purposes
-  OUTDATED_FORMULAE="$(brew outdated --verbose --formula || true)"
-  if [[ -n "$OUTDATED_FORMULAE" ]]; then
-    echo "Outdated Formulae:" >> "$LOG_FILE"
-    echo "$OUTDATED_FORMULAE" >> "$LOG_FILE"
-  fi
-
-  run_task "Upgrading formulae..." brew upgrade --formula
-
-  # Baseline packages to verify/install/track
-  for pkg in git jq node python3 tmux pre-commit awscli eza bat fd ripgrep fzf zoxide tree; do
-    # Capture 'old' version logic:
-    # If we just upgraded, 'brew list' shows current.
-    # To strictly track "old", we rely on the fact that we just ran 'brew upgrade'.
-    # If the package was upgraded, it was in the outdated list.
-    # But for simplicity and robustness (since we reverted complexity),
-    # we will just check if it's installed, install if missing, and log current version.
-    
+  # Baseline packages verification
+  for pkg in git jq node python3 tmux pre-commit awscli eza bat fd ripgrep fzf zoxide tree glab kiro kiro-cli beads beads-viewer uv; do
     if ! brew list --versions "$pkg" >/dev/null 2>&1; then
-      run_task "Installing $pkg..." brew install "$pkg"
+      run_task "Installing missing $pkg..." brew install "$pkg" || true
     fi
-    # Current version
     new="$(brew_ver "$pkg")"
     track "$pkg" "Unknown" "$new"
   done
-
-  if prompt "Run Homebrew cask operations (may require sudo)?" "N"; then
-    if ! brew list --cask --versions font-meslo-lg-nerd-font >/dev/null 2>&1; then
-      brew tap homebrew/cask-fonts >/dev/null 2>&1 || true
-      run_task "Installing font-meslo-lg-nerd-font..." brew install --cask font-meslo-lg-nerd-font
-    fi
-    new="$(brew_cask_ver font-meslo-lg-nerd-font)"
-    track "font-meslo-lg-nerd-font(cask)" "Unknown" "$new"
-  else
-    log INFO "Skipping cask operations."
-  fi
-
   run_task "Cleaning up Homebrew..." brew cleanup
 fi
 
-if prompt "Update Oh My Zsh + plugins?" "Y"; then
+echo ""
+if prompt "Update Oh My Zsh and plugins?" "N"; then
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
     old="$(git -C "$HOME/.oh-my-zsh" rev-parse --short HEAD 2>/dev/null || true)"
     if [[ -f "$HOME/.oh-my-zsh/tools/upgrade.sh" ]]; then
@@ -188,25 +190,18 @@ if prompt "Update Oh My Zsh + plugins?" "Y"; then
   fi
 fi
 
-if prompt "Update Beads (bd)?" "Y"; then
-  old="$(bd_ver)"
-  run_task "Upgrading Beads..." bash -c 'brew upgrade beads || brew reinstall beads' || true
-  hash -r 2>/dev/null || true
-  
-  # Repo-local check (Simplified: just check status, don't crash)
-  if [[ -d .beads ]]; then
-     run_task "Checking repo-local beads..." bd doctor --json || true
-  fi
-  
-  new="$(bd_ver)"
-  track "beads(bd)" "$old" "$new"
-fi
-
-if prompt "Update npm global AI CLIs?" "Y"; then
+echo ""
+if prompt "Update global NPM packages (e.g. AI CLIs)?" "N"; then
   if have npm; then
+    OUTDATED_NPM="$(npm outdated -g --depth=0 2>/dev/null || true)"
+    if [[ -n "$OUTDATED_NPM" ]]; then
+      echo "--- Available NPM Updates ---"
+      echo "$OUTDATED_NPM" | sed 's/^/  /'
+      echo "-----------------------------"
+    fi
     for pkg in @openai/codex @google/gemini-cli @google/jules specify-cli; do
       old="$(npm list -g "$pkg" --depth=0 2>/dev/null | grep -Eo "${pkg//@/\\@}@[0-9A-Za-z._-]+" | head -n1 | awk -F@ '{print $NF}' || echo "Not Installed")"
-      run_task "Updating $pkg..." npm install -g "$pkg" || true
+      run_task "Updating NPM package $pkg..." npm install -g "$pkg" || true
       new="$(npm list -g "$pkg" --depth=0 2>/dev/null | grep -Eo "${pkg//@/\\@}@[0-9A-Za-z._-]+" | head -n1 | awk -F@ '{print $NF}' || echo "Unknown")"
       track "$pkg" "$old" "$new"
     done
@@ -221,32 +216,43 @@ MINUTES=$((DURATION / 60))
 SECONDS=$((DURATION % 60))
 
 {
-  echo "Update Summary - $(date)"
+  echo "======================================================================="
+  echo "                  Update Final Report                                  "
+  echo "======================================================================="
+  echo "Date: $(date)"
   echo "Elapsed Time: ${MINUTES}m ${SECONDS}s"
-  echo "=========================================="
-  echo
-  echo "UPDATED"
-  echo "----------------"
+  echo ""
+  
+  echo "[ ✅ SUCCESSFULLY UPDATED ]"
+  echo "---------------------------------------------------"
   if [[ -s "$UPDATED_LOG" ]]; then
-    echo "Software|Previous|Current"
-    sort -u "$UPDATED_LOG"
+    printf "%-30s | %-10s -> %s\n" "SOFTWARE" "PREVIOUS" "CURRENT"
+    echo "---------------------------------------------------"
+    sort -u "$UPDATED_LOG" | awk -F'|' '{printf "%-30s | %-10s -> %s\n", $1, $2, $3}'
   else
-    echo "No updates applied."
-  fi | column -t -s "|"
+    echo "  (No packages were updated)"
+  fi
+  echo ""
 
-  echo
-  echo "UNCHANGED"
-  echo "----------------"
+  echo "[ ➖ NO CHANGES NEEDED ]"
+  echo "---------------------------------------------------"
   if [[ -s "$UNCHANGED_LOG" ]]; then
-    echo "Software|Current"
-    sort -u "$UNCHANGED_LOG"
+    sort -u "$UNCHANGED_LOG" | awk -F'|' '{printf "  %-30s : %s\n", $1, $2}'
   else
-    echo "None"
-  fi | column -t -s "|"
+    echo "  (None)"
+  fi
+  echo ""
+
+  if [[ -s "$FAILED_LOG" ]]; then
+    echo "[ ❌ ERRORS / WARNINGS ]"
+    echo "---------------------------------------------------"
+    sed 's/^/  - /' "$FAILED_LOG"
+    echo ""
+  fi
+
+  echo "======================================================================="
 } > "$REPORT_FILE"
 
+echo ""
 cat "$REPORT_FILE"
-
-echo "=========================================="
-log OK "System update finished in ${MINUTES}m ${SECONDS}s"
-log INFO "Full log: $LOG_FILE"
+log INFO "Full detailed log available at: $LOG_FILE"

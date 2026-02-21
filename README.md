@@ -3,16 +3,20 @@
 Canonical path on this machine: `~/Desktop/dotfiles`.
 Embedded copies also live at `scripts/setup/dotfiles` inside repos.
 
-This package installs a minimal, portable local environment for EngOS workflows:
-- guarded zsh startup (PTY-safe Kiro bootstrap)
-- explicit zsh vi-mode defaults for interactive shells
-- automatic Powerlevel10k Meslo Nerd Font installation
-- generic tmux UX helpers (main/watcher pane flow)
-- minimal CLI config files (`.gemini`, `.claude`, `.kiro`, AGENTS docs)
-- software updater with strict Beads Dolt+CGO verification and self-heal
+This package installs a minimal, portable local environment for EngOS workflows. It has been designed to be transparent, educational, and safe.
+
+Features:
+- Initial environment audit before making any changes.
+- Choice between a safe **Additive Install** (tools only) and a **Clean Install** (full shell configuration).
+- Explicit `y/N` opt-in prompts (no "shock and awe" overwrites).
+- Safe, automatic Powerlevel10k and Meslo Nerd Font installation (bypassing the wizard).
+- Generic tmux UX helpers (main/watcher pane flow).
+- Minimal CLI config files (`.gemini`, `.claude`, `.kiro`, AGENTS docs).
+- Granular, interactive software updater with previews (`update.sh`).
 
 ## What Is Managed
 
+- **Core Tools:** `git`, `jq`, `node`, `python3`, `tmux`, `pre-commit`, `awscli`, `eza`, `bat`, `fd`, `ripgrep`, `fzf`, `zoxide`, `tree`, `glab`, `kiro`, `kiro-cli`, `beads`, `beads-viewer`, `uv`, and `specify-cli`.
 - `~/.zshenv`, `~/.zprofile`, `~/.zshrc`, `~/.zsh/aliases/*.zsh`
 - `~/.tmux.conf`, `~/.local/bin/{pty-clean-safe,tmux-*}`
 - `~/.gemini/settings.json`, `~/.gemini/AGENTS.md`, `~/.gemini/GEMINI.md`
@@ -23,9 +27,12 @@ This package installs a minimal, portable local environment for EngOS workflows:
 
 ## Token Precedence
 
-- Set `GITLAB_READ_WRITE_TOKEN` in `~/.secrets.env` as the primary GitLab token.
-- `~/.zshrc` maps `GITLAB_READ_WRITE_TOKEN` to `GITLAB_TOKEN` for compatibility.
-- Kiro MCP GitLab config consumes `GITLAB_READ_WRITE_TOKEN` directly.
+- Set `GITLAB_TOKEN` in `~/.secrets.env` as the canonical GitLab token for git operations.
+- Set `GLAB_WRITE` as an optional write-capable token used only by the `glab` wrapper in `~/.zshrc`.
+- Set `GITLAB_MCP_TOKEN` as a read-only token for MCP servers.
+- Recommended scopes are `read_api`, `read_repository`, `read_user`, `read_registry`.
+- GitLab MCP is disabled by default; enable only after setting a read-only `GITLAB_MCP_TOKEN`.
+- Set `GLAB_HOST=gitlab.appian-stratus.com` to keep `glab` calls pinned to self-hosted GitLab.
 
 ## What Is Not Managed
 
@@ -35,18 +42,20 @@ This package installs a minimal, portable local environment for EngOS workflows:
 
 ## Install
 
+By default, the installer runs interactively. It performs an audit and asks you to choose between an Additive or Clean install.
+
 ```bash
 cd ~/Desktop/dotfiles
 ./install.sh
 ```
 
-Non-interactive:
+Non-interactive (Defaults to safe Additive Install):
 
 ```bash
 ./install.sh --yes
 ```
 
-Dry run:
+Dry run (Preview what will happen without writing files):
 
 ```bash
 ./install.sh --dry-run
@@ -58,22 +67,29 @@ Install into a local repo path (intent: embed this package into the repo):
 ./install.sh --repo-path ~/Desktop/shapeup-base-v6clone
 ```
 
-Result:
-- `~/Desktop/shapeup-base-v6clone/scripts/setup/dotfiles` becomes the repo-local install source.
+## Addendum: Why Choose a Clean Install?
+When you run the dotfiles installer interactively, you are offered an **Additive Install** (safe, installs only missing tools) or a **Clean Install** (a full, opinionated environment upgrade).
+
+Here is why you should consider a **Clean Install**:
+- **Snappier Zsh Experience:** We replace generic zsh loading with explicit, optimized `vi-mode` defaults, making terminal sessions faster and more predictable.
+- **Automated & Safe P10K:** The `p10k` config wizard frequently "blows up" terminals or requires manual font fetching. The clean install entirely bypasses the wizard, silently installing the `MesloLGS Nerd Font` and injecting a guaranteed-stable, visually rich prompt.
+- **Preconfigured Tmux UX:** Out of the box, you get a main/watcher pane workflow pattern. Custom helpers (`tmux-main-watch`, `tmux-copy-main`) allow seamless context switching.
+- **Centralized Secrets Management:** It drops a structured `~/.secrets.env` template. All your tokens (like `GITLAB_TOKEN`) are securely unified in one place, preventing token sprawl across disparate configs.
+- **Unified AI Memory & Tooling:** A Clean install aligns your environment to a shared standard. Your `gemini`, `claude`, `codex`, and `kiro` CLI configurations are modularly mapped, including a **Shared MCP Memory Server** so context persists seamlessly across all AI clients.
 
 ## Update Software + Beads Runtime
 
+By default, the updater runs interactively. It previews available updates (e.g., via `brew outdated`) before prompting.
+
 ```bash
-~/update_software.sh -i
+~/update_software.sh
 ```
 
-This updater enforces:
-- Homebrew `bd` install path
-- Dolt backend runtime validation (`bd init --backend dolt` smoke test)
-- CGO regression detection
-- repo-local Beads self-heal when run inside a repo with `.beads/`
-- core shell tools including `eza`, `bat`, `fd`, `ripgrep`, `fzf`, `zoxide`, and `tree`
-- Meslo Nerd Font cask (`font-meslo-lg-nerd-font`)
+Non-interactive update (auto-accepts all updates):
+
+```bash
+~/update_software.sh --yes
+```
 
 ## Shell Ergonomics
 

@@ -17,12 +17,13 @@
         "--rm",
         "-e",
         "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server"
+        "ghcr.io/github/github-mcp-server",
+        "stdio"
       ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_PAT}"
       },
-      "disabled": true
+      "disabled": false
     },
     "google_workspace": {
       "command": "uvx",
@@ -34,7 +35,7 @@
         "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
         "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}"
       },
-      "disabled": true
+      "disabled": false
     },
     "gitlab": {
       "command": "docker",
@@ -47,7 +48,7 @@
         "registry.gitlab.appian-stratus.com/appian/prod/gitlab-mcp-server/gitlab-mcp-server:latest"
       ],
       "env": {
-        "GITLAB_TOKEN": "${GITLAB_READ_WRITE_TOKEN}"
+        "GITLAB_TOKEN": "${GITLAB_MCP_TOKEN}"
       },
       "disabled": true
     },
@@ -60,17 +61,14 @@
       "disabled": false
     },
     "memory": {
-      "command": "docker",
+      "command": "npx",
       "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-v",
-        "${HOME}/repo/agentic-ai-codebases:/data",
-        "--env",
-        "MEMORY_FILE_PATH=/data/memory.json",
-        "mcp/memory"
-      ]
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "${HOME}/.mcp_shared_memory.json"
+      }
     },
     "jira": {
       "command": "docker",
@@ -91,7 +89,7 @@
         "JIRA_TOKEN": "${JIRA_TOKEN}",
         "JIRA_URL": "${JIRA_URL}"
       },
-      "disabled": true
+      "disabled": false
     },
     "playwright": {
       "command": "npx",
