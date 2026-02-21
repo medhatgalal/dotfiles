@@ -48,6 +48,15 @@ fi
 # Default glab host to self-hosted GitLab unless explicitly overridden.
 export GLAB_HOST="${GLAB_HOST:-gitlab.appian-stratus.com}"
 
+# Route glab auth through explicit write token when provided.
+glab() {
+  if [[ -n "${GLAB_WRITE:-}" ]]; then
+    GITLAB_TOKEN="${GLAB_WRITE}" command glab "$@"
+  else
+    command glab "$@"
+  fi
+}
+
 # Completions
 if [[ -d ${HOME}/.docker/completions ]]; then
   fpath=(${HOME}/.docker/completions $fpath)
