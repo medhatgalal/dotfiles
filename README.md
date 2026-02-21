@@ -31,6 +31,7 @@ Features:
 - Set `GITLAB_MCP_TOKEN` as a read-only token for MCP servers.
 - Recommended scopes are `read_api`, `read_repository`, `read_user`, `read_registry`.
 - GitLab MCP is disabled by default; enable only after setting a read-only `GITLAB_MCP_TOKEN`.
+- Set `GLAB_HOST=gitlab.appian-stratus.com` to keep `glab` calls pinned to self-hosted GitLab.
 
 ## What Is Not Managed
 

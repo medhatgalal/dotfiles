@@ -45,6 +45,9 @@ if [[ -z "${GITLAB_MCP_TOKEN:-}" && -n "${GITLAB_TOKEN:-}" ]]; then
   export GITLAB_MCP_TOKEN="${GITLAB_TOKEN}"
 fi
 
+# Default glab host to self-hosted GitLab unless explicitly overridden.
+export GLAB_HOST="${GLAB_HOST:-gitlab.appian-stratus.com}"
+
 # Completions
 if [[ -d ${HOME}/.docker/completions ]]; then
   fpath=(${HOME}/.docker/completions $fpath)
