@@ -75,6 +75,20 @@
         "JIRA_URL": "${JIRA_URL}"
       }
     },
+    "gitlab": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--env",
+        "GITLAB_TOKEN",
+        "${GITLAB_MCP_IMAGE}"
+      ],
+      "env": {
+        "GITLAB_TOKEN": "${GITLAB_TOKEN}"
+      }
+    },
     "memory": {
       "command": "npx",
       "args": [
